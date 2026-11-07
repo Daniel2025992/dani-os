@@ -100,10 +100,8 @@ def plan(cfg):
 
 
 def user_steps(cfg, u):
-    steps = []
-    if u != "dani":   # the live-session account "dani" must not survive on the installed system
-        steps.append(["chroot", TARGET, "useradd", "-m", "-s", "/bin/bash", "-G", "sudo,audio,video,netdev", u])
-        steps.append(["chroot", TARGET, "userdel", "-r", "dani"])
+    # the live user is created by live-config at boot, so it is NOT inside the squashfs: create the real user here
+    steps = [["chroot", TARGET, "useradd", "-m", "-s", "/bin/bash", "-G", "sudo,audio,video,render,input,netdev,plugdev", u]]
     steps.append(("password", u) if cfg.get("password") else ["chroot", TARGET, "passwd", "-d", u])
     return steps
 

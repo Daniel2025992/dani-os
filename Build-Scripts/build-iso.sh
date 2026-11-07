@@ -18,7 +18,7 @@ lb config \
   --binary-images iso-hybrid --bootloaders "grub-pc,grub-efi" \
   --iso-application "DANI OS" --iso-volume "DANI-OS" --iso-publisher "DANI" \
   --debian-installer none --apt-recommends false \
-  --bootappend-live "boot=live components quiet splash"
+  --bootappend-live "boot=live components quiet splash live-config.username=dani live-config.user-fullname=DANI live-config.hostname=dani-os live-config.user-default-groups=audio,video,render,input,netdev,plugdev,sudo"
 
 # ---- packages: minimal Wayland kiosk, NO traditional Linux desktop environment ----
 mkdir -p config/package-lists
@@ -39,11 +39,7 @@ cp -r "$ROOT/Shared" "$D/Shared"
 cp -r "$ROOT/Installer" "$D/Installer"
 rm -rf "$D/Shared/data"     # never ship account data
 
-cat > config/includes.chroot/etc/systemd/system/getty@tty1.service.d/autologin.conf <<'EOF'
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty --autologin dani --noclear %I $TERM
-EOF
+# autologin of the live user is configured by live-config (username=dani)
 cat > config/includes.chroot/etc/systemd/system/dani-pairing.service <<'EOF'
 [Unit]
 Description=DANI OS pairing/account server (phone <-> computer, LAN)
@@ -92,8 +88,6 @@ cat > config/hooks/live/0100-dani.hook.chroot <<'EOF'
 #!/bin/sh
 set -e
 cd /opt/dani-os/Computer-OS/shell && npm install --omit=dev --no-audit --no-fund electron
-useradd -m -s /bin/bash -G sudo,audio,video,render,input,netdev dani || true
-passwd -d dani || true
 systemctl enable dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
 EOF
 chmod +x config/hooks/live/0100-dani.hook.chroot
