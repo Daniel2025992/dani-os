@@ -1,0 +1,88 @@
+name: Build DANI OS (ISO + APK)
+
+# Run it by hand: GitHub -> Actions -> "Build DANI OS (ISO + APK)" -> Run workflow.
+# Result: one Release containing the ISO, its .sha256 and the Android APK.
+on:
+  workflow_dispatch:
+
+jobs:
+  iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    container:
+      image: debian:trixie
+      options: --privileged
+    steps:
+      - name: Install build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            live-build debootstrap xorriso squashfs-tools mtools dosfstools gdisk \
+            grub-pc-bin grub-efi-amd64-bin grub-efi-amd64-signed shim-signed \
+            isolinux syslinux-common ca-certificates git nodejs npm curl
+      - uses: actions/checkout@v4
+      - name: Build ISO
+        run: |
+          chmod +x Build-Scripts/*.sh
+          ./Build-Scripts/build-iso.sh
+      - name: Show result
+        run: |
+          ls -lh ISO/
+          cat ISO/*.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dani-os-iso
+          path: ISO/*
+          retention-days: 14
+
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+      - name: Build debug APK
+        working-directory: Mobile-App
+        run: gradle assembleDebug --no-daemon
+      - name: Name the APK
+        run: |
+          mkdir -p out
+          cp Mobile-App/app/build/outputs/apk/debug/app-debug.apk out/DANI-OS-Mobile.apk
+          ls -lh out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dani-os-apk
+          path: out/DANI-OS-Mobile.apk
+          retention-days: 14
+
+  release:
+    needs: [iso, apk]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - run: ls -lh dist/
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: DANI OS (build ${{ github.run_number }})
+          make_latest: true
+          body: "DANI OS: ISO for PC + APK for Android. Use DANI-Setup.bat from the Windows-Setup folder to download and install both."
+          files: |
+            dist/*.iso
+            dist/*.sha256
+            dist/DANI-OS-Mobile.apk

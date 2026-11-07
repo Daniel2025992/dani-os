@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "categories": ["כלים", "יצירה", "משחקים", "תקשורת", "מערכת"],
+  "apps": [
+    {"id": "notes", "name": "פתקים", "icon": "📝", "category": "כלים", "version": "1.2.0", "type": "pwa", "url": "https://excalidraw.com", "desc": "לוח כתיבה וציור חופשי."},
+    {"id": "maps", "name": "מפות", "icon": "🗺️", "category": "כלים", "version": "1.0.0", "type": "pwa", "url": "https://www.openstreetmap.org", "desc": "מפות פתוחות של העולם."},
+    {"id": "photopea", "name": "עריכת תמונות", "icon": "🖼️", "category": "יצירה", "version": "2.0.1", "type": "pwa", "url": "https://www.photopea.com", "desc": "עורך תמונות מתקדם בדפדפן."},
+    {"id": "chess", "name": "שחמט", "icon": "♟️", "category": "משחקים", "version": "1.1.0", "type": "pwa", "url": "https://lichess.org", "desc": "שחמט אונליין."},
+    {"id": "discord", "name": "Discord", "icon": "💬", "category": "תקשורת", "version": "1.0.0", "type": "pwa", "url": "https://discord.com/app", "desc": "צ'אט וקהילות."},
+    {"id": "files", "name": "קבצים", "icon": "📁", "category": "מערכת", "version": "1.0.0", "type": "native", "package": "pcmanfm", "desc": "מנהל קבצים מקורי (חבילת apt: pcmanfm)."},
+    {"id": "vlc", "name": "VLC", "icon": "🎬", "category": "יצירה", "version": "3.0.0", "type": "native", "package": "vlc", "desc": "נגן מדיה מקורי (חבילת apt: vlc)."},
+    {"id": "steam", "name": "Steam", "icon": "🎮", "category": "משחקים", "version": "1.0.0", "type": "native", "package": "steam-installer", "desc": "פלטפורמת משחקים (מהדורת Gamer)."}
+  ]
+}
