@@ -9,8 +9,8 @@ android {
         applicationId 'com.dani.os.mobile'
         minSdk 24
         targetSdk 34
-        versionCode 19
-        versionName '0.1.19'
+        versionCode 21
+        versionName '0.1.21'
     }
     buildTypes { release { minifyEnabled false } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
