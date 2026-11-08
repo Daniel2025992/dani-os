@@ -1,8 +1,13 @@
 {
   "name": "dani-os-shell",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "main": "main.js",
   "description": "DANI OS desktop shell",
-  "scripts": { "start": "electron .", "dev": "electron . --dev" },
-  "dependencies": { "electron": "^33.0.0" }
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "dependencies": {
+    "electron": "^33.0.0"
+  }
 }
