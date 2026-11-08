@@ -90,8 +90,8 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: DANI OS (build ${{ github.run_number }})
+          tag_name: build-18
+          name: DANI OS (Build 18)
           make_latest: true
           body: "DANI OS: ISO for PC + APK for Android. Use DANI-Setup.bat from the Windows-Setup folder to download and install both."
           files: |
