@@ -35,7 +35,7 @@ nav button{margin:0;padding:10px;font-size:13px}
 
   <div class="card" id="pairbox">
     <b>חיבור למחשב (לא חובה)</b>
-    <p class="hint">בלי הרשמה. במחשב פתח "חיבור טלפון" ויופיע קוד. הטלפון והמחשב צריכים להיות על אותה רשת Wi-Fi.</p>
+    <p class="hint">בלי הרשמה ובלי Wi-Fi משותף. במחשב פתח "חיבור טלפון" ויופיע קוד בן 6 ספרות, הקלד אותו כאן. לשני המכשירים צריך אינטרנט (אם אין, זה עובד גם על אותה רשת Wi-Fi).</p>
     <input id="code" class="code" maxlength="6" inputmode="numeric" placeholder="······">
     <button id="claim">התחבר עם הקוד</button>
     <div id="confirm" style="display:none"><p><b>אשר גם כאן</b> אחרי שאישרת במחשב:</p><button id="cok">אשר חיבור</button><button class="g" id="cno">בטל</button></div>
@@ -53,6 +53,7 @@ nav button{margin:0;padding:10px;font-size:13px}
   <button id="save">שמור</button><button class="g" id="unlink">נתק מהמחשב</button><button class="g" id="back">חזרה</button>
 </section>
 
+<script src="relay-client.js"></script>
 <script>
 "use strict";
 const $=s=>document.querySelector(s);
@@ -61,9 +62,11 @@ const S={get:(k,d='')=>localStorage.getItem('dani.'+k)??d,set:(k,v)=>localStorag
 const devName=()=>(window.Android&&Android.deviceName())||'Android';
 const PORT=7799;
 let pairId=null,pairSecret=null,poll=null,notePoll=null,lastNote=+S.get('lastNote',0);
+let RS=null;   // encrypted internet channel to the computer (code-only pairing, no shared Wi-Fi); null = same-Wi-Fi mode
 
 const base=()=>S.get('server'); // e.g. http://192.168.1.10:7799
 async function raw(path,{method='GET',body,token,secret,server}={}){
+  if(RS){const h={};if(token)h.authorization='Bearer '+token;if(secret)h['x-pair-secret']=secret;return RS.call(method,path,body,h)}
   const h={'content-type':'application/json'};
   if(token)h.authorization='Bearer '+token; if(secret)h['x-pair-secret']=secret;
   const r=await fetch((server||base())+path,{method,headers:h,body:body?JSON.stringify(body):undefined});
@@ -93,10 +96,15 @@ async function discover(){
 async function claim(){
   $('#perr').textContent='';const code=$('#code').value.trim();
   if(!/^\d{6}$/.test(code)){$('#perr').textContent='הזן קוד בן 6 ספרות';return}
-  $('#claim').disabled=true;$('#perr').textContent='מחפש את המחשב ברשת…';
+  $('#claim').disabled=true;$('#perr').textContent='מתחבר למחשב דרך האינטרנט…';
   try{
-    let srv=base();let ok=srv&&await probe(srv.replace('http://',''),900);
-    if(!ok){srv=await discover();if(!srv)throw new Error('not_found');S.set('server',srv)}
+    if(RS){try{RS.close()}catch{}RS=null}
+    try{RS=await DaniRelay.connect({relay:S.get('relay')||undefined,code})}catch{RS=null}   // 1) internet, code only
+    if(!RS){                                                                                // 2) fallback: same Wi-Fi
+      $('#perr').textContent='מחפש את המחשב ברשת Wi-Fi…';
+      let srv=base();let ok=srv&&await probe(srv.replace('http://',''),900);
+      if(!ok){srv=await discover();if(!srv)throw new Error('not_found');S.set('server',srv)}
+    }
     const r=await raw('/api/pair/claim',{method:'POST',body:{code,deviceName:devName()}});
     pairId=r.pairId;pairSecret=r.secret;
     $('#perr').textContent='הקוד התקבל. אשר את החיבור במחשב ואז כאן.';
@@ -104,11 +112,12 @@ async function claim(){
     clearInterval(poll);
     poll=setInterval(async()=>{
       const s=await raw('/api/pair/status/'+pairId,{secret:pairSecret}).catch(()=>null);if(!s)return;
-      if(s.state==='paired'){clearInterval(poll);S.set('token',s.token);S.set('computer',s.deviceName||'המחשב');resetPairUi();enter()}
+      if(s.state==='paired'){clearInterval(poll);S.set('token',s.token);S.set('computer',s.deviceName||'המחשב');if(RS){S.set('relay_sess',JSON.stringify(RS.export()));RS.onPush(addNote)}resetPairUi();enter()}
       if(['expired','rejected'].includes(s.state)){clearInterval(poll);$('#perr').textContent=s.state==='expired'?'הקוד פג תוקף':'המחשב דחה את הבקשה';resetPairUi(true)}
-    },1500);
+    },RS?3000:1500);
   }catch(e){
-    $('#perr').textContent=e.message==='not_found'?'לא נמצא מחשב ברשת. ודא שאתם על אותו Wi-Fi, או הזן כתובת בהגדרות.':'קוד לא תקין או שפג תוקפו';
+    $('#perr').textContent=e.message==='not_found'?'לא נמצא מחשב. ודא שלטלפון יש אינטרנט ושהקוד במחשב עדיין מוצג (תוקף 2 דקות).':'קוד לא תקין או שפג תוקפו';
+    if(RS&&!S.get('relay_sess')){try{RS.close()}catch{}RS=null}
     $('#claim').disabled=false;
   }
 }
@@ -117,19 +126,22 @@ function resetPairUi(keepMsg){$('#confirm').style.display='none';$('#claim').sty
 async function refresh(){
   if(!tok()){$('#dot').classList.remove('on');$('#state').textContent='לא מחובר למחשב';$('#pairbox').style.display='block';return}
   try{const s=await raw('/api/device/status',{token:tok()});
-    $('#dot').classList.add('on');$('#state').textContent='מחובר ל-DANI OS';$('#devs').textContent=S.get('computer');$('#pairbox').style.display='none';
+    $('#dot').classList.add('on');$('#state').textContent=RS?'מחובר ל-DANI OS (דרך האינטרנט)':'מחובר ל-DANI OS';$('#devs').textContent=S.get('computer');$('#pairbox').style.display='none';
   }catch(e){if(e.status===401){S.del('token');refresh()}else{$('#state').textContent='המחשב לא זמין כרגע'}}
+}
+function addNote(n){
+  const d=document.createElement('div');d.style.cssText='border-top:1px solid #eee;padding:6px 0';d.innerHTML='<b></b><br><span></span>';
+  d.firstChild.textContent=n.title;d.lastChild.textContent=n.body;const box=$('#notes');if(box.textContent==='אין הודעות.')box.textContent='';box.prepend(d);
+  window.Android&&Android.notify(n.title,n.body);
 }
 async function pullNotes(){
   if(!tok())return;
   try{const r=await raw('/api/notifications?since='+lastNote,{token:tok()});
-    for(const n of r.items){lastNote=Math.max(lastNote,n.ts);S.set('lastNote',lastNote);
-      const d=document.createElement('div');d.style.cssText='border-top:1px solid #eee;padding:6px 0';d.innerHTML='<b></b><br><span></span>';
-      d.firstChild.textContent=n.title;d.lastChild.textContent=n.body;const box=$('#notes');if(box.textContent==='אין הודעות.')box.textContent='';box.prepend(d);
-      window.Android&&Android.notify(n.title,n.body);}
+    for(const n of r.items){lastNote=Math.max(lastNote,n.ts);S.set('lastNote',lastNote);addNote(n)}
   }catch{}
 }
-function enter(){show('main');refresh();clearInterval(notePoll);notePoll=setInterval(()=>{refresh();pullNotes()},4000);pullNotes()}
+function enter(){show('main');refresh();clearInterval(notePoll);if(RS){pullNotes();return}   // internet mode: the computer pushes, no polling
+  notePoll=setInterval(()=>{refresh();pullNotes()},4000);pullNotes()}
 
 $('#claim').onclick=claim;
 $('#cok').onclick=()=>raw('/api/pair/confirm/'+pairId,{method:'POST',secret:pairSecret}).catch(e=>$('#perr').textContent='שגיאה: '+e.message);
@@ -137,8 +149,9 @@ $('#cno').onclick=()=>{raw('/api/pair/reject/'+pairId,{method:'POST',secret:pair
 $('#toSet').onclick=()=>{$('#dev').textContent=devName();$('#linked').textContent=tok()?S.get('computer'):'—';$('#srv2').value=S.get('manual');show('settings')};
 $('#back').onclick=()=>show('main');
 $('#save').onclick=()=>{const v=$('#srv2').value.trim().replace(/^https?:\/\//,'');v?S.set('manual',v):S.del('manual');S.del('server');show('main')};
-$('#unlink').onclick=async()=>{if(tok())await raw('/api/device/unlink',{method:'POST',token:tok()}).catch(()=>{});S.del('token');S.del('computer');refresh();show('main')};
-setTimeout(enter,1400);   // no sign-up: the app opens straight to the main screen
+$('#unlink').onclick=async()=>{if(tok())await raw('/api/device/unlink',{method:'POST',token:tok()}).catch(()=>{});S.del('token');S.del('computer');S.del('relay_sess');if(RS){try{RS.close()}catch{}RS=null}refresh();show('main')};
+(async()=>{try{const sv=S.get('relay_sess');if(sv&&tok()){RS=await DaniRelay.resume(JSON.parse(sv));RS.onPush(addNote)}}catch{RS=null}
+  setTimeout(enter,900)})();   // no sign-up: the app opens straight to the main screen
 </script>
 </body>
 </html>

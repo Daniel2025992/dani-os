@@ -19,6 +19,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+let bridge = null;                                // internet relay (code-only pairing without shared Wi-Fi); optional
+try { if (process.env.DANI_RELAY_OFF !== '1') bridge = require('./relay-bridge'); } catch (e) { console.error('relay disabled:', e.message); }
 
 const PORT = +process.env.PORT || 7799;
 const DATA = process.env.DANI_DATA || path.join(__dirname, 'data');
@@ -86,6 +88,7 @@ const server = http.createServer(async (req, res) => {
       const code = newCode(), pairId = crypto.randomBytes(12).toString('hex'), secret = rnd();
       pairs.set(pairId, { pairId, code, state: 'waiting', exp: Date.now() + CODE_TTL_MS, computerSecretHash: sha(secret), phoneSecretHash: null, deviceName: '', computerOk: false, phoneOk: false, link: null, delivered: {} });
       codes.set(code, pairId);
+      if (bridge) bridge.announceCode(code, Date.now() + CODE_TTL_MS);
       return send(res, 200, { pairId, code, secret, expiresIn: CODE_TTL_MS / 1000 });
     }
 
@@ -133,12 +136,12 @@ const server = http.createServer(async (req, res) => {
     // --- after pairing: token based ---
     const a = bearer(req); if (!a) return send(res, 401, { error: 'unauthorized' });
     if (req.method === 'GET' && p === '/api/device/status') return send(res, 200, { paired: true, name: links[a.id].name, role: a.role });
-    if (req.method === 'POST' && p === '/api/device/unlink') { delete links[a.id]; inbox.delete(a.id); saveLinks(); return send(res, 200, { ok: true }); }
+    if (req.method === 'POST' && p === '/api/device/unlink') { delete links[a.id]; inbox.delete(a.id); saveLinks(); if (bridge) bridge.dropLink(a.id); return send(res, 200, { ok: true }); }
     if (req.method === 'POST' && p === '/api/notify') {
       if (a.role !== 'computer') return send(res, 403, { error: 'computer_only' });
       const { title, body: b } = await body(req); const arr = inbox.get(a.id) || [];
       arr.push({ id: crypto.randomUUID(), title: String(title || '').slice(0, 100), body: String(b || '').slice(0, 500), ts: Date.now() });
-      inbox.set(a.id, arr.slice(-100)); return send(res, 201, { ok: true });
+      inbox.set(a.id, arr.slice(-100)); if (bridge) bridge.push(a.id, arr[arr.length - 1]); return send(res, 201, { ok: true });
     }
     if (req.method === 'GET' && p === '/api/notifications') {
       if (a.role !== 'phone') return send(res, 403, { error: 'phone_only' });
@@ -149,5 +152,9 @@ const server = http.createServer(async (req, res) => {
   } catch (e) { return send(res, 400, { error: e.message }); }
 });
 
-if (require.main === module) server.listen(PORT, process.env.HOST || '127.0.0.1', () => console.log(`DANI pairing server on ${process.env.HOST || '127.0.0.1'}:${PORT}`));
+function linkIdForToken(t) { const h = sha(String(t)); for (const [id, l] of Object.entries(links)) if (eq(h, l.deviceTokenHash)) return id; return null; }
+if (require.main === module) server.listen(PORT, process.env.HOST || '127.0.0.1', () => {
+  console.log(`DANI pairing server on ${process.env.HOST || '127.0.0.1'}:${PORT}`);
+  if (bridge) bridge.start({ port: PORT, linkIdForToken });
+});
 module.exports = { server };

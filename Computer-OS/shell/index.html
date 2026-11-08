@@ -260,7 +260,7 @@ function phoneApp(root){
     $('#u',root).onclick=async()=>{await J('/api/device/unlink',{method:'POST',headers:{authorization:'Bearer '+link.token}}).catch(()=>{});store.set('phoneLink',null);phoneApp(root)};
     return;
   }
-  root.innerHTML=`<div class="pad"><h2>📱 חיבור טלפון</h2><p id="s">חיבור הטלפון הוא לא חובה. הטלפון והמחשב צריכים להיות על אותה רשת Wi-Fi. בלי הרשמה, רק קוד.</p><div id="code" style="font-size:44px;letter-spacing:8px;font-weight:700;color:var(--red);direction:ltr;text-align:center;margin:18px 0"></div><button class="b" id="go">צור קוד חיבור</button><div id="ap" style="margin-top:14px"></div><p id="ip" style="color:#777;font-size:12px;direction:ltr;text-align:left"></p></div>`;
+  root.innerHTML=`<div class="pad"><h2>📱 חיבור טלפון</h2><p id="s">חיבור הטלפון הוא לא חובה. בלי הרשמה ובלי Wi-Fi משותף: רק קוד בן 6 ספרות, לשני המכשירים צריך אינטרנט.</p><div id="code" style="font-size:44px;letter-spacing:8px;font-weight:700;color:var(--red);direction:ltr;text-align:center;margin:18px 0"></div><button class="b" id="go">צור קוד חיבור</button><div id="ap" style="margin-top:14px"></div><p id="ip" style="color:#777;font-size:12px;direction:ltr;text-align:left"></p></div>`;
   fetch(AGENT+'/api/netinfo').then(r=>r.json()).then(n=>{if(n.ips&&n.ips.length)$('#ip',root).textContent='Manual address: '+n.ips.map(i=>i+':7799').join('  ')}).catch(()=>{});
   let timer;
   $('#go',root).onclick=async()=>{
