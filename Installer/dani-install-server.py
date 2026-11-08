@@ -71,9 +71,9 @@ def profile_json(cfg, u):
 def plan(cfg):
     d = cfg["disk"]
     u = cfg.get("username") or "dani"          # no user given -> default account, real user is created at first boot
-    p1, p2 = part(d, 1), part(d, 2)
+    p1, p2 = part(d, 2), part(d, 3)            # 1 = BIOS boot area, 2 = EFI system partition, 3 = system
     steps = [
-        ("חלוקת דיסק", [["sgdisk", "--zap-all", d], ["sgdisk", "-n1:0:+512M", "-t1:ef00", "-n2:0:0", "-t2:8300", d]]),
+        ("חלוקת דיסק", [["sgdisk", "--zap-all", d], ["sgdisk", "-n1:0:+1M", "-t1:ef02", "-n2:0:+512M", "-t2:ef00", "-n3:0:0", "-t3:8300", d]]),
         ("פורמט", [["mkfs.vfat", "-F32", p1], ["mkfs.ext4", "-F", "-L", "DANI-OS", p2]]),
         ("הרכבה", [["mkdir", "-p", TARGET], ["mount", p2, TARGET], ["mkdir", "-p", TARGET + "/boot/efi"], ["mount", p1, TARGET + "/boot/efi"]]),
         ("העתקת המערכת", [["unsquashfs", "-f", "-d", TARGET, SQUASH]]),
@@ -89,7 +89,9 @@ def plan(cfg):
         ("מטען אתחול", [["mount", "--bind", "/dev", TARGET + "/dev"], ["mount", "--bind", "/sys", TARGET + "/sys"], ["mount", "--bind", "/proc", TARGET + "/proc"],
                         ("fstab", p1, p2),
                         ["chroot", TARGET, "update-initramfs", "-u", "-k", "all"],
-                        ["chroot", TARGET, "grub-install", "--target=x86_64-efi", "--efi-directory=/boot/efi", "--bootloader-id=DANI-OS", "--removable"],
+                        # boots on both UEFI and classic BIOS machines (VMware/VirtualBox default to BIOS)
+                        ("soft", ["chroot", TARGET, "grub-install", "--target=i386-pc", "--recheck", d]),
+                        ("soft", ["chroot", TARGET, "grub-install", "--target=x86_64-efi", "--efi-directory=/boot/efi", "--bootloader-id=DANI-OS", "--removable"]),
                         ["chroot", TARGET, "update-grub"]]),
     ]
     pk = EDITIONS[cfg["edition"]]

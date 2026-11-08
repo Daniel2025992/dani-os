@@ -82,7 +82,7 @@ cage xwayland libgbm1 libgtk-3-0t64 libnss3 libxss1 libasound2t64 libxkbcommon0 
 xserver-xorg-core xinit xserver-xorg-video-vmware xserver-xorg-video-fbdev xserver-xorg-video-vesa xserver-xorg-input-libinput
 libpam-systemd dbus seatd fonts-noto-core fonts-noto-ui-core fonts-noto-color-emoji fonts-dejavu-core ca-certificates
 nodejs npm python3 openssl
-grub-efi-amd64 grub-efi-amd64-signed shim-signed efibootmgr gdisk dosfstools e2fsprogs squashfs-tools util-linux
+grub-efi-amd64 grub-efi-amd64-signed shim-signed grub-pc-bin efibootmgr gdisk dosfstools e2fsprogs squashfs-tools util-linux
 pipewire pipewire-pulse wireplumber plymouth
 # Do not install the legacy Broadcom STA firmware installer: it can fail in chroot builds and is not needed for VMware/VirtualBox.
 firmware-b43-installer-
