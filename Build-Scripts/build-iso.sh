@@ -18,6 +18,7 @@ lb config \
   --binary-images iso-hybrid --bootloaders "grub-pc,grub-efi" \
   --iso-application "DANI OS" --iso-volume "DANI-OS" --iso-publisher "DANI" \
   --debian-installer none --apt-recommends false \
+  --firmware-chroot false --firmware-binary false \
   --bootappend-live "boot=live components quiet splash live-config.username=dani live-config.user-fullname=DANI live-config.hostname=dani-os live-config.user-default-groups=audio,video,render,input,netdev,plugdev,sudo"
 
 # ---- DANI boot menu: our own 640x480 splash instead of Debian's hard hat ----
