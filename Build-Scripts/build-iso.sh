@@ -107,8 +107,15 @@ export ELECTRON_OZONE_PLATFORM_HINT=wayland
 export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1 LIBSEAT_BACKEND=logind
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 LOG=/tmp/dani-session.log
-cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --ozone-platform=wayland /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >"$LOG" 2>&1
-code=$?
+# Do not let a compositor/Electron failure terminate this script before diagnostics are shown.
+set +e
+if [ ! -x /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron ]; then
+  echo "DANI OS ERROR: Electron is missing. Check the ISO build dependency installation." | tee "$LOG"
+  code=127
+else
+  cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --ozone-platform=wayland --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >"$LOG" 2>&1
+  code=$?
+fi
 clear
 echo "DANI OS: the desktop stopped (exit code $code). Details:"
 echo "user=$(id -un) XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
