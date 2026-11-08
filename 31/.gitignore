@@ -1,0 +1,13 @@
+node_modules/
+Shared/data/
+Build-Scripts/work/
+Mobile-App/.gradle/
+Mobile-App/build/
+Mobile-App/app/build/
+Mobile-App/local.properties
+Mobile-App/out/
+ISO/*.iso
+Windows-Setup/downloads/
+Windows-Setup/platform-tools/
+Windows-Setup/repo.txt
+__pycache__/

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>מתקין DANI OS</title>
+<style>
+:root{--red:#e11d2e}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:-apple-system,"Segoe UI",Rubik,Heebo,sans-serif;background:linear-gradient(135deg,#fff5f6,#ffc7cd 50%,#e11d2e);color:#1d1d1f}
+.box{width:min(720px,94vw);background:rgba(255,255,255,.88);backdrop-filter:blur(20px);border-radius:24px;padding:32px;box-shadow:0 30px 80px rgba(120,0,10,.35)}
+h1{margin:0 0 4px;color:var(--red)}h2{margin-top:0}
+.steps{display:flex;gap:6px;margin:14px 0 22px}.steps i{flex:1;height:5px;border-radius:9px;background:#eadadc}.steps i.on{background:var(--red)}
+.ed{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.opt{border:2px solid #eee;border-radius:16px;padding:16px;cursor:pointer;background:#fff;text-align:center}
+.opt.on{border-color:var(--red);background:#fff4f5}
+.opt b{display:block;font-size:17px;margin:6px 0}.opt small{color:#666}
+label{display:block;margin:12px 0 4px;font-size:14px;color:#444}
+input,select{width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;font:inherit}
+.nav{display:flex;justify-content:space-between;margin-top:26px}
+button{background:var(--red);color:#fff;border:0;border-radius:12px;padding:11px 26px;font:inherit;cursor:pointer}
+button.g{background:#eee;color:#222}button:disabled{opacity:.4}
+pre{background:#111;color:#9f9;padding:12px;border-radius:10px;direction:ltr;text-align:left;max-height:220px;overflow:auto;font-size:12px}
+.code{font-size:48px;letter-spacing:10px;text-align:center;color:var(--red);font-weight:700;direction:ltr}
+.err{color:#c00;font-size:13px}
+</style>
+</head>
+<body>
+<div class="box">
+  <img src="../Shared/branding/logo.png" alt="DANI OS" style="display:block;width:200px;margin:0 auto -4px">
+  <div class="steps" id="steps"></div>
+  <div id="view"></div>
+  <div class="nav"><button class="g" id="back">חזרה</button><button id="next">המשך</button></div>
+</div>
+<script>
+"use strict";
+const AGENT = new URLSearchParams(location.search).get('agent') || 'http://127.0.0.1:7790'; // Installer/dani-install-server.py
+const PAIR = new URLSearchParams(location.search).get('pair') || 'http://127.0.0.1:7799';
+const cfg = { edition: 'Home', language: 'he', country: 'IL', timezone: 'Asia/Jerusalem', keyboard: 'il', username: '', email: '', password: '', avatar: '', pairPhone: false, disk: '', skipUser: false };
+let step = 0, pairInfo = null, pairTimer = null, installing = false;
+const $ = s => document.querySelector(s);
+const EDITIONS = [['Home', 'לבית ולעבודה יומיומית', '🏠'], ['Pro', 'כלי פיתוח ותפוקה', '💼'], ['Gamer', 'Steam ותמיכת משחקים', '🎮']];
+const TZ = ['Asia/Jerusalem', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo'];
+const sel = (id, arr, v) => `<select id="${id}">${arr.map(([k, n]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+// email and password are optional; the user can also be skipped and created at first boot
+const valid = () => step !== 3 || cfg.skipUser || (/^[a-z_][a-z0-9_-]{1,30}$/.test(cfg.username) && (cfg.email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cfg.email)));
+
+const screens = [
+  () => `<h2>בחירת מהדורה</h2><div class="ed">${EDITIONS.map(([k, d, i]) => `<div class="opt ${cfg.edition === k ? 'on' : ''}" data-ed="${k}"><div style="font-size:34px">${i}</div><b>DANI OS ${k}</b><small>${d}</small></div>`).join('')}</div>`,
+  () => `<h2>שפה</h2>${sel('language', [['he', 'עברית'], ['en', 'English'], ['ar', 'العربية'], ['ru', 'Русский']], cfg.language)}`,
+  () => `<h2>אזור</h2><label>מדינה</label>${sel('country', [['IL', 'ישראל'], ['US', 'ארצות הברית'], ['GB', 'בריטניה'], ['DE', 'גרמניה']], cfg.country)}<label>אזור זמן</label>${sel('timezone', TZ.map(t => [t, t]), cfg.timezone)}<label>מקלדת</label>${sel('keyboard', [['il', 'עברית'], ['us', 'English (US)'], ['gb', 'English (UK)'], ['de', 'Deutsch']], cfg.keyboard)}`,
+  () => `<h2>יצירת משתמש</h2>${cfg.skipUser ? '<p>המשתמש ייווצר בהפעלה הראשונה של המחשב, כמו ב-Mac.</p><button class="g" id="unskip">אני רוצה ליצור עכשיו</button>' : `<label>שם משתמש (אותיות לועזיות קטנות)</label><input id="username" value="${cfg.username}" autocomplete="off" style="direction:ltr"><label>אימייל (לא חובה)</label><input id="email" value="${cfg.email}" style="direction:ltr"><label>סיסמה (לא חובה — בלי סיסמה כל אחד שמפעיל את המחשב נכנס)</label><input id="password" type="password" value="${cfg.password}" style="direction:ltr"><label>תמונת פרופיל (אופציונלי)</label><input id="avatar" type="file" accept="image/*"><div class="err" id="err"></div><p><button class="g" id="skip">דלג — ליצור משתמש בהפעלה הראשונה</button></p>`}`,
+  () => `<h2>חיבור הטלפון</h2>${!cfg.pairPhone ? '<p>האם ברצונך לחבר את הטלפון שלך ל-DANI OS? זה לא חובה, ובלי הרשמה: רק קוד, והטלפון צריך להיות על אותה רשת Wi-Fi.</p><button id="yes">כן, חבר</button> <button class="g" id="no">לא עכשיו</button>' : `<p>פתח את DANI OS Mobile והזן את הקוד:</p><div class="code" id="pc">…</div><p id="ps">ממתין לטלפון…</p><div id="pa"></div><small>הקוד חד-פעמי ותקף ל-2 דקות. אפשר לדלג ולחבר מאוחר יותר מתוך המערכת.</small>`}`,
+  () => `<h2>סיכום והתקנה</h2><p>מהדורה: <b>DANI OS ${cfg.edition}</b><br>שפה: ${cfg.language} · ${cfg.country} · ${cfg.timezone} · מקלדת ${cfg.keyboard}<br>משתמש: ${cfg.skipUser ? '<b>ייווצר בהפעלה הראשונה</b>' : `<b>${cfg.username}</b>${cfg.email ? ' (' + cfg.email + ')' : ''}${cfg.password ? '' : ' — ללא סיסמה'}`}<br>טלפון: ${cfg.pairPhone ? 'מבוקש' : 'ללא'}</p><label>דיסק יעד</label><select id="disk"><option value="">טוען…</option></select><p class="err">⚠ ההתקנה תמחק את כל הנתונים בדיסק שנבחר.</p><pre id="log" style="display:none"></pre>`
+];
+
+function render() {
+  $('#steps').innerHTML = screens.map((_, i) => `<i class="${i <= step ? 'on' : ''}"></i>`).join('');
+  $('#view').innerHTML = screens[step]();
+  $('#back').style.visibility = step === 0 || installing ? 'hidden' : 'visible';
+  $('#next').textContent = step === screens.length - 1 ? 'התקן' : 'המשך';
+  $('#next').style.display = step === 4 && !cfg.pairPhone ? 'none' : '';
+  bind();
+}
+function bind() {
+  document.querySelectorAll('[data-ed]').forEach(e => e.onclick = () => { cfg.edition = e.dataset.ed; render(); });
+  for (const id of ['language', 'country', 'timezone', 'keyboard']) { const e = $('#' + id); if (e) e.onchange = () => cfg[id] = e.value; }
+  for (const id of ['username', 'email', 'password']) { const e = $('#' + id); if (e) e.oninput = () => cfg[id] = e.value.trim ? (id === 'password' ? e.value : e.value.trim()) : e.value; }
+  const av = $('#avatar'); if (av) av.onchange = () => { const f = av.files[0]; if (!f || f.size > 2e6) return; const r = new FileReader(); r.onload = () => cfg.avatar = r.result; r.readAsDataURL(f); };
+  if ($('#skip')) $('#skip').onclick = () => { cfg.skipUser = true; cfg.username = ''; cfg.email = ''; cfg.password = ''; cfg.avatar = ''; render(); };
+  if ($('#unskip')) $('#unskip').onclick = () => { cfg.skipUser = false; render(); };
+  if ($('#yes')) $('#yes').onclick = () => { cfg.pairPhone = true; render(); startPairing(); };
+  if ($('#no')) $('#no').onclick = () => { cfg.pairPhone = false; go(1); };
+  if (step === 4 && cfg.pairPhone) $('#next').style.display = '';
+  if (step === 5) loadDisks();
+}
+async function startPairing() {
+  try {
+    const post = (p, hdr) => fetch(PAIR + p, { method: 'POST', headers: hdr || {} }).then(r => r.json());
+    pairInfo = await post('/api/pair/start');
+    if (!pairInfo.code) throw new Error(pairInfo.error || 'no code');
+    const hdr = { 'x-pair-secret': pairInfo.secret };
+    $('#pc').textContent = pairInfo.code;
+    clearInterval(pairTimer);
+    pairTimer = setInterval(async () => {
+      const s = await fetch(PAIR + '/api/pair/status/' + pairInfo.pairId, { headers: hdr }).then(r => r.json());
+      if (s.state === 'awaiting_approval') {
+        $('#pa').innerHTML = `<b>"${s.deviceName.replace(/</g, '&lt;')}" מבקש להתחבר.</b><br><button id="ap">אשר</button> <button class="g" id="rj">דחה</button>`;
+        $('#ap').onclick = () => post('/api/pair/approve/' + pairInfo.pairId, hdr);
+        $('#rj').onclick = () => post('/api/pair/reject/' + pairInfo.pairId, hdr);
+        $('#ps').textContent = s.computerOk ? 'ממתין לאישור בטלפון…' : 'אשר כאן ובטלפון כדי להשלים.';
+      }
+      if (s.state === 'paired') { clearInterval(pairTimer); $('#pc').textContent = '✓'; $('#ps').textContent = 'הטלפון מחובר.'; $('#pa').innerHTML = ''; }
+      if (['expired', 'rejected'].includes(s.state)) { clearInterval(pairTimer); $('#ps').textContent = s.state === 'expired' ? 'הקוד פג תוקף – אפשר לחבר מאוחר יותר.' : 'נדחה.'; }
+    }, 1500);
+  } catch (e) { $('#ps').textContent = 'שרת הצימוד לא זמין (' + e.message + '). אפשר להמשיך ולחבר מאוחר יותר.'; $('#pc').textContent = '—'; }
+}
+async function loadDisks() {
+  try { const d = await fetch(AGENT + '/disks').then(r => r.json()); $('#disk').innerHTML = d.disks.map(x => `<option value="${x.path}">${x.path} — ${x.size} ${x.model}</option>`).join('') || '<option value="">לא נמצאו דיסקים</option>'; cfg.disk = $('#disk').value; $('#disk').onchange = e => cfg.disk = e.target.value; }
+  catch { $('#disk').innerHTML = '<option value="">שרת ההתקנה לא זמין (מצב תצוגה בלבד)</option>'; }
+}
+async function install() {
+  if (!cfg.disk) { alert('לא נבחר דיסק. במצב תצוגה בלבד אי אפשר להתקין.'); return; }
+  if (!confirm('כל הנתונים ב-' + cfg.disk + ' יימחקו. להמשיך?')) return;
+  installing = true; $('#next').disabled = true; $('#back').style.visibility = 'hidden'; $('#log').style.display = 'block';
+  const r = await fetch(AGENT + '/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...cfg, confirm: cfg.disk }) });
+  const rd = r.body.getReader(), dec = new TextDecoder();
+  for (;;) { const { done, value } = await rd.read(); if (done) break; $('#log').textContent += dec.decode(value); $('#log').scrollTop = 1e9; }
+}
+function go(d) { if (d > 0 && !valid()) { $('#err') && ($('#err').textContent = 'שם משתמש: אותיות לועזיות קטנות/ספרות (2–31 תווים). אם הוזן אימייל — הוא חייב להיות תקין.'); return; } step = Math.max(0, Math.min(screens.length - 1, step + d)); render(); }
+$('#next').onclick = () => step === screens.length - 1 ? install() : go(1);
+$('#back').onclick = () => go(-1);
+render();
+</script>
+</body>
+</html>
