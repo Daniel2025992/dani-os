@@ -207,7 +207,7 @@ EOF
 # boot splash theme (Plymouth): DANI OS logo, white/red
 T=config/includes.chroot/usr/share/plymouth/themes/dani
 mkdir -p "$T"
-cp "$ROOT/Shared/branding/plymouth/dani.plymouth" "$ROOT/Shared/branding/plymouth/dani.script" "$ROOT/Shared/branding/plymouth/bar.png" "$T/"
+cp "$ROOT/Shared/branding/plymouth/dani.plymouth" "$ROOT/Shared/branding/plymouth/dani.script" "$ROOT/Shared/branding/plymouth/bar.png" "$ROOT/Shared/branding/plymouth/bg.png" "$T/"
 cp "$ROOT/Shared/branding/logo.png" "$T/logo.png"
 
 # self-diagnosis: 70 s after boot, if the desktop window never appeared, print what is going on straight onto the screen (root, tty1)
