@@ -77,7 +77,14 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - run: ls -lh dist/
+      - name: Name the files just dani-os
+        run: |
+          cd dist
+          mv *.iso dani-os.iso
+          mv DANI-OS-Mobile.apk dani-os.apk
+          rm -f *.sha256
+          sha256sum dani-os.iso > dani-os.iso.sha256
+          ls -lh
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -86,6 +93,6 @@ jobs:
           make_latest: true
           body: "DANI OS: ISO for PC + APK for Android. Use DANI-Setup.bat from the Windows-Setup folder to download and install both."
           files: |
-            dist/*.iso
-            dist/*.sha256
-            dist/DANI-OS-Mobile.apk
+            dist/dani-os.iso
+            dist/dani-os.iso.sha256
+            dist/dani-os.apk
