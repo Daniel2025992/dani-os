@@ -136,47 +136,33 @@ EOF
 mkdir -p config/includes.chroot/usr/local/bin
 cat > config/includes.chroot/usr/local/bin/dani-session <<'EOF'
 #!/bin/sh
-# Prefer X11 for VMware compatibility; use Cage/Wayland only as a fallback.
+# Starts the DANI desktop. VM-friendly (software rendering). If it fails, show WHY on screen instead of a black screen.
 if [ -d /run/live/medium ]; then PAGE=Installer/installer.html; else PAGE=Computer-OS/shell/index.html; fi
-export DANI_PAGE="$PAGE"
+export ELECTRON_OZONE_PLATFORM_HINT=wayland
+export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1 LIBSEAT_BACKEND=logind
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-export ELECTRON_OZONE_PLATFORM_HINT=x11
 LOG=/tmp/dani-session.log
+# Do not let a compositor/Electron failure terminate this script before diagnostics are shown.
 set +e
-
 if [ ! -x /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron ]; then
   echo "DANI OS ERROR: Electron is missing. Check the ISO build dependency installation." | tee "$LOG"
   code=127
 else
-  startx /usr/local/bin/dani-xsession -- :0 vt1 -keeptty -nolisten tcp >"$LOG" 2>&1
+  cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --ozone-platform=wayland --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >"$LOG" 2>&1
   code=$?
-  if [ "$code" -ne 0 ]; then
-    echo "X11 startup failed (exit code $code); trying Wayland/Cage fallback." >>"$LOG"
-    export ELECTRON_OZONE_PLATFORM_HINT=wayland
-    export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1 LIBSEAT_BACKEND=logind
-    cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --ozone-platform=wayland --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >>"$LOG" 2>&1
-    code=$?
-  fi
 fi
-
 clear
 echo "DANI OS: the desktop stopped (exit code $code). Details:"
 echo "user=$(id -un) XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
-tail -n 50 "$LOG"
+tail -n 40 "$LOG"
 echo
-echo "Retrying in 30 seconds..."
-sleep 30
+echo "Retrying in 60 seconds..."
+sleep 60
 exit 1
 EOF
 chmod +x config/includes.chroot/usr/local/bin/dani-session
 
-cat > config/includes.chroot/usr/local/bin/dani-xsession <<'EOF'
-#!/bin/sh
-# X11 session entry point. Electron is the only fullscreen desktop application.
-export DISPLAY="${DISPLAY:-:0}"
-exec /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --disable-gpu-compositing --disable-dev-shm-usage --ozone-platform=x11 --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="${DANI_PAGE:-Computer-OS/shell/index.html}"
-EOF
-chmod +x config/includes.chroot/usr/local/bin/dani-xsession
+
 cat > config/includes.chroot/etc/systemd/system/dani-shell.service <<'EOF'
 [Unit]
 Description=DANI OS desktop (kiosk session on tty1)
