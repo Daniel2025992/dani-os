@@ -101,9 +101,22 @@ EOF
 mkdir -p config/includes.chroot/usr/local/bin
 cat > config/includes.chroot/usr/local/bin/dani-session <<'EOF'
 #!/bin/sh
+# Starts the DANI desktop. VM-friendly (software rendering). If it fails, show WHY on screen instead of a black screen.
 if [ -d /run/live/medium ]; then PAGE=Installer/installer.html; else PAGE=Computer-OS/shell/index.html; fi
 export ELECTRON_OZONE_PLATFORM_HINT=wayland
-exec cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE"
+export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1 LIBSEAT_BACKEND=logind
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+LOG=/tmp/dani-session.log
+cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --disable-software-rasterizer --ozone-platform=wayland /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >"$LOG" 2>&1
+code=$?
+clear
+echo "DANI OS: the desktop stopped (exit code $code). Details:"
+echo "user=$(id -un) XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+tail -n 40 "$LOG"
+echo
+echo "Retrying in 60 seconds..."
+sleep 60
+exit 1
 EOF
 chmod +x config/includes.chroot/usr/local/bin/dani-session
 cat > config/includes.chroot/etc/systemd/system/dani-shell.service <<'EOF'
@@ -124,7 +137,7 @@ UtmpIdentifier=tty1
 UtmpMode=user
 ExecStart=/usr/local/bin/dani-session
 Restart=always
-RestartSec=2
+RestartSec=3
 [Install]
 WantedBy=graphical.target
 EOF
