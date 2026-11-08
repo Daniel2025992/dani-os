@@ -209,18 +209,23 @@ cat > config/includes.chroot/usr/local/bin/dani-diag <<'EOF'
 #!/bin/sh
 sleep 70
 [ -e /tmp/dani-ready ] && exit 0
+OUT=/tmp/dani-diag.txt
 {
-  chvt 1 2>/dev/null
-  echo
   echo "=============== DANI OS DIAGNOSTICS (build $(cat /etc/dani-build 2>/dev/null)) ==============="
   echo "The desktop window did not appear. Please photograph this whole screen."
-  echo "--- dani-shell status"; systemctl status dani-shell --no-pager -l 2>&1 | tail -n 12
+  echo "--- dani-shell status"; systemctl status dani-shell --no-pager -l 2>&1 | tail -n 10 | cut -c1-170
   echo "--- processes"; ps -eo user,pid,etime,args 2>/dev/null | grep -E "dani-session|cage|electron|seatd" | grep -v grep | cut -c1-150 | head -n 8
   echo "--- /dev/dri"; ls -l /dev/dri 2>&1 | head -n 6
   echo "--- sessions"; loginctl list-sessions --no-pager 2>&1 | head -n 5
-  echo "--- session log"; tail -n 25 /tmp/dani-session.log 2>&1
-  echo "--- journal"; journalctl -u dani-shell -b --no-pager 2>&1 | tail -n 12 | cut -c1-170
-} > /dev/tty1 2>&1
+  echo "--- session log"; tail -n 22 /tmp/dani-session.log 2>&1 | cut -c1-170
+  echo "--- journal"; journalctl -u dani-shell -b --no-pager 2>&1 | tail -n 10 | cut -c1-170
+} > "$OUT" 2>&1
+# the compositor owns the screen (graphics mode) and hides text: stop it so the text console comes back, then print
+systemctl stop dani-shell.service 2>/dev/null
+pkill -f cage 2>/dev/null; pkill -f electron 2>/dev/null
+sleep 2
+chvt 2 2>/dev/null; sleep 1; chvt 1 2>/dev/null
+{ printf '\033c'; cat "$OUT"; } > /dev/tty1 2>&1
 EOF
 chmod +x config/includes.chroot/usr/local/bin/dani-diag
 cat > config/includes.chroot/etc/systemd/system/dani-diag.service <<'EOF'
