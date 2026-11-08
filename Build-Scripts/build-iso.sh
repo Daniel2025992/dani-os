@@ -34,8 +34,9 @@ mkdir -p config/hooks/live
 cat > config/hooks/live/0900-dani-splash.hook.binary <<'EOF'
 #!/bin/sh
 set -e
-for f in binary/boot/grub/splash.png binary/isolinux/splash.png; do
-  [ -f "$f" ] && cp -f config/dani-splash.png "$f" && echo "DANI splash installed: $f"
+echo "DANI splash hook: cwd=$(pwd)"
+find . -name 'splash.png' -not -path './chroot/*' 2>/dev/null | while read -r f; do
+  cp -f config/dani-splash.png "$f" && echo "DANI splash installed: $f"
 done
 true
 EOF
