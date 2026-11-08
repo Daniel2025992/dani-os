@@ -1,0 +1,37 @@
+name: Publish release for Build 31
+# Re-publishes the files that CI run #31 built from commit 34cc53d (Build 31) as their own release. Builds nothing new.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release31:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download the artifacts of run #31
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir dist
+          gh run download 42475789815 --repo "${{ github.repository }}" --dir dist
+          find dist -type f -exec ls -lh {} \;
+      - name: Name the files
+        run: |
+          cd dist
+          mv */*.iso dani-os-build-31.iso
+          mv */*.apk dani-os-build-31.apk
+          sha256sum dani-os-build-31.iso > dani-os-build-31.iso.sha256
+          ls -lh
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-31
+          target_commitish: 34cc53d54e798eab5ef283bef7fdaa2021dd01ee
+          name: DANI OS Build 31
+          make_latest: false
+          body: "DANI OS Build 31 (commit 34cc53d, Wayland/Cage startup fix). ISO for PC + APK for Android."
+          files: |
+            dist/dani-os-build-31.iso
+            dist/dani-os-build-31.iso.sha256
+            dist/dani-os-build-31.apk
