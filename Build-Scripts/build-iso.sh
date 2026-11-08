@@ -19,7 +19,7 @@ lb config \
   --iso-application "DANI OS" --iso-volume "DANI-OS" --iso-publisher "DANI" \
   --debian-installer none --apt-recommends false \
   --firmware-chroot false --firmware-binary false \
-  --bootappend-live "boot=live components plymouth.enable=0 systemd.show_status=1 loglevel=5 live-config.username=dani live-config.user-fullname=DANI live-config.hostname=dani-os live-config.user-default-groups=audio,video,render,input,netdev,plugdev,sudo"
+  --bootappend-live "boot=live components plymouth.enable=0 systemd.show_status=1 loglevel=5 live-config.hostname=dani-os"
 
 # ---- DANI boot menu: our own 640x480 splash instead of Debian's hard hat ----
 # (the whole old menu picture, hat + text, is built from bootloaders/splash.svg; the live-build menu itself only uses the lower half)
@@ -254,6 +254,10 @@ until npm install --omit=dev --no-audit --no-fund electron; do
   attempt=$((attempt + 1))
   sleep 15
 done
+# the DANI user is created here (live-config never created "dani", which is why the desktop service failed with 217/USER)
+G=""; for g in audio video render input netdev plugdev sudo; do getent group $g >/dev/null && G="$G,$g"; done
+useradd -m -u 1500 -s /bin/bash -G "${G#,}" -c DANI dani
+passwd -d dani
 systemctl enable dani-diag.service dani-shell.service dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
 systemctl set-default graphical.target
 systemctl mask getty@tty1.service

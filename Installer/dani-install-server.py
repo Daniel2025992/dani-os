@@ -100,7 +100,8 @@ def plan(cfg):
 
 def user_steps(cfg, u):
     # the live user is created by live-config at boot, so it is NOT inside the squashfs: create the real user here
-    steps = [["chroot", TARGET, "useradd", "-m", "-s", "/bin/bash", "-G", "sudo,audio,video,render,input,netdev,plugdev", u]]
+    steps = [["chroot", TARGET, "sh", "-c", 'id -u "$1" >/dev/null 2>&1 || useradd -m -s /bin/bash -G sudo,audio,video,render,input,netdev,plugdev "$1"', "x", u],
+             ["chroot", TARGET, "sh", "-c", '[ "$1" = dani ] || passwd -l dani', "x", u]]
     steps.append(("password", u) if cfg.get("password") else ["chroot", TARGET, "passwd", "-d", u])
     return steps
 
