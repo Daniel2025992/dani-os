@@ -136,28 +136,42 @@ EOF
 mkdir -p config/includes.chroot/usr/local/bin
 cat > config/includes.chroot/usr/local/bin/dani-session <<'EOF'
 #!/bin/sh
-# Starts the DANI desktop. VM-friendly (software rendering). If it fails, show WHY on screen instead of a black screen.
+# Starts the DANI desktop. Tries several graphics set-ups; if the desktop window never appears, shows WHY on screen.
 if [ -d /run/live/medium ]; then PAGE=Installer/installer.html; else PAGE=Computer-OS/shell/index.html; fi
 export ELECTRON_OZONE_PLATFORM_HINT=wayland
-export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1 LIBSEAT_BACKEND=logind
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+ELECTRON=/opt/dani-os/Computer-OS/shell/node_modules/.bin/electron
 LOG=/tmp/dani-session.log
-# Do not let a compositor/Electron failure terminate this script before diagnostics are shown.
+rm -f /tmp/dani-ready "$LOG"
 set +e
-if [ ! -x /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron ]; then
+if [ ! -x "$ELECTRON" ]; then
   echo "DANI OS ERROR: Electron is missing. Check the ISO build dependency installation." | tee "$LOG"
-  code=127
 else
-  cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --ozone-platform=wayland --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >"$LOG" 2>&1
-  code=$?
+  n=0
+  while [ $n -lt 2 ]; do
+    n=$((n+1))
+    echo "=== attempt $n ===" >>"$LOG"
+    if [ $n = 1 ]; then
+      export LIBSEAT_BACKEND=logind WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1
+    else
+      export LIBSEAT_BACKEND=seatd WLR_RENDERER=pixman WLR_NO_HARDWARE_CURSORS=1
+    fi
+    cage -s -- "$ELECTRON" --no-sandbox --disable-gpu --ozone-platform=wayland --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >>"$LOG" 2>&1 &
+    pid=$!
+    t=0
+    while [ $t -lt 45 ] && [ ! -e /tmp/dani-ready ] && kill -0 $pid 2>/dev/null; do sleep 1; t=$((t+1)); done
+    if [ -e /tmp/dani-ready ]; then wait $pid; exit 0; fi
+    echo "--- attempt $n: no desktop window after ${t}s (cage alive: $(kill -0 $pid 2>/dev/null && echo yes || echo no)) ---" >>"$LOG"
+    kill $pid 2>/dev/null; sleep 2; kill -9 $pid 2>/dev/null; pkill -u "$(id -u)" -f electron 2>/dev/null; sleep 1
+  done
 fi
 clear
-echo "DANI OS: the desktop stopped (exit code $code). Details:"
+echo "DANI OS: the desktop did not start. Please send a photo of this screen."
 echo "user=$(id -un) XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
-tail -n 40 "$LOG"
+ls -l /dev/dri /run/seatd.sock 2>&1 | head -12
 echo
-echo "Retrying in 60 seconds..."
-sleep 60
+tail -n 35 "$LOG"
+sleep 600
 exit 1
 EOF
 chmod +x config/includes.chroot/usr/local/bin/dani-session

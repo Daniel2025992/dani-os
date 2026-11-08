@@ -36,6 +36,7 @@ app.whenReady().then(async () => {
     fullscreen: !dev, width: 1280, height: 800, backgroundColor: '#e11d2e', autoHideMenuBar: true,
     webPreferences: { webviewTag: true, contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
+  win.webContents.once('did-finish-load', () => { try { require('fs').writeFileSync('/tmp/dani-ready', 'ok'); } catch (e) {} });
   win.loadURL(`http://127.0.0.1:${port}/${PAGE}`);
 });
 app.on('window-all-closed', () => app.quit());
