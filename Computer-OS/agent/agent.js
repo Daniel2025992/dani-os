@@ -32,13 +32,22 @@ function launch(cmd) {
     p.unref(); return { ok: true, msg: 'נפתח' };
   } catch (e) { return { ok: false, msg: 'הפתיחה נכשלה: ' + e.message }; }
 }
-const json = (res, c, o) => { res.writeHead(c, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' }); res.end(JSON.stringify(o)); };
+const json = (res, c, o) => { res.writeHead(c, { 'content-type': 'application/json', 'access-control-allow-origin': res.getHeader('access-control-allow-origin') || 'null', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' }); res.end(JSON.stringify(o)); };
 
+// Only the DANI shell itself may talk to this agent: websites opened in the browser (other origins) and DNS-rebinding tricks are refused.
+const ORIGINS = new Set(['http://127.0.0.1:17788', 'http://localhost:17788', ...(process.env.DANI_ORIGINS || '').split(',').filter(Boolean)]);
+const HOSTS = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
+const sysapi = require('./system-api');
 http.createServer((req, res) => {
+  const origin = req.headers.origin;
+  if (!HOSTS.has(req.headers.host || '')) { res.writeHead(403); return res.end(); }
+  if (origin ? !ORIGINS.has(origin) : req.method !== 'GET') { res.writeHead(403); return res.end(); }   // no Origin = plain <img>/<video> GET or a local tool; never a cross-site write
+  if (origin) res.setHeader('access-control-allow-origin', origin);
   if (req.method === 'OPTIONS') return json(res, 204, {});
-  let d = ''; req.on('data', c => { d += c; if (d.length > 5000) req.destroy(); });
+  let d = ''; req.on('data', c => { d += c; if (d.length > 400_000) req.destroy(); });
   req.on('end', async () => {
     let b = {}; try { b = d ? JSON.parse(d) : {}; } catch {}
+    if (await sysapi.handle(req, res, new URL(req.url, 'http://x'), b, json)) return;
     if (req.method === 'GET' && req.url === '/api/netinfo') {   // LAN addresses, shown as a manual fallback for phone pairing
       const ips = Object.values(require('os').networkInterfaces()).flat().filter(i => i.family === 'IPv4' && !i.internal).map(i => i.address);
       return json(res, 200, { ips });
