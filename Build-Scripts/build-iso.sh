@@ -29,6 +29,33 @@ rm -f config/bootloaders/splash.svg
 cp "$ROOT/Shared/branding/boot-splash.png" config/bootloaders/splash.png
 sed -i 's/^title-text:.*/title-text: ""/' config/bootloaders/grub-pc/live-theme/theme.txt
 
+# IMPORTANT: an iso-hybrid image uses ISOLINUX for legacy BIOS boot.
+# Debian's default ISOLINUX timeout is 0, which waits forever for Enter.
+# Set a 5-second automatic boot while keeping the DANI splash/menu visible.
+ISOLINUX_CFG=config/bootloaders/isolinux/isolinux.cfg
+if [ -f "$ISOLINUX_CFG" ]; then
+  if grep -qE '^[[:space:]]*timeout[[:space:]]+' "$ISOLINUX_CFG"; then
+    sed -i -E 's/^[[:space:]]*timeout[[:space:]]+.*/timeout 50/' "$ISOLINUX_CFG"
+  else
+    printf '\\nprompt 0\\ntimeout 50\\n' >> "$ISOLINUX_CFG"
+  fi
+  if grep -qE '^[[:space:]]*prompt[[:space:]]+' "$ISOLINUX_CFG"; then
+    sed -i -E 's/^[[:space:]]*prompt[[:space:]]+.*/prompt 0/' "$ISOLINUX_CFG"
+  else
+    sed -i '1i prompt 0' "$ISOLINUX_CFG"
+  fi
+fi
+
+# UEFI uses GRUB; give it the same automatic 5-second start.
+GRUB_CFG=config/bootloaders/grub-pc/grub.cfg
+if [ -f "$GRUB_CFG" ]; then
+  if grep -qE '^[[:space:]]*set timeout=' "$GRUB_CFG"; then
+    sed -i -E 's/^[[:space:]]*set timeout=.*/set timeout=5/' "$GRUB_CFG"
+  else
+    sed -i '1i set timeout=5' "$GRUB_CFG"
+  fi
+fi
+
 # live-build regenerates the menu picture (800x600 hard hat) later in the build, so put ours in AFTER everything else (binary hook)
 cp "$ROOT/Shared/branding/boot-splash.png" config/dani-splash.png
 mkdir -p config/hooks/live
