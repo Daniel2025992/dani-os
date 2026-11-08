@@ -81,14 +81,38 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
 
-# autostart: live session -> installer, installed system -> desktop shell (kiosk compositor, no Linux DE visible)
-mkdir -p config/includes.chroot/etc/skel
-cat > config/includes.chroot/etc/skel/.bash_profile <<'EOF'
-if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = /dev/tty1 ]; then
-  if [ -d /run/live/medium ]; then PAGE=Installer/installer.html; else PAGE=Computer-OS/shell/index.html; fi
-  export ELECTRON_OZONE_PLATFORM_HINT=wayland
-  exec cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE"
-fi
+# autostart: a systemd service starts the kiosk compositor directly on tty1 as the DANI user (PAMName=login gives it a real
+# logind session WITHOUT a password check), so there is no getty/login autologin that can fail with "Authentication failure".
+# live session -> installer, installed system -> desktop shell.
+mkdir -p config/includes.chroot/usr/local/bin
+cat > config/includes.chroot/usr/local/bin/dani-session <<'EOF'
+#!/bin/sh
+if [ -d /run/live/medium ]; then PAGE=Installer/installer.html; else PAGE=Computer-OS/shell/index.html; fi
+export ELECTRON_OZONE_PLATFORM_HINT=wayland
+exec cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE"
+EOF
+chmod +x config/includes.chroot/usr/local/bin/dani-session
+cat > config/includes.chroot/etc/systemd/system/dani-shell.service <<'EOF'
+[Unit]
+Description=DANI OS desktop (kiosk session on tty1)
+After=systemd-user-sessions.service live-config.service dbus.service getty@tty1.service
+Conflicts=getty@tty1.service
+[Service]
+User=dani
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=journal
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+UtmpIdentifier=tty1
+UtmpMode=user
+ExecStart=/usr/local/bin/dani-session
+Restart=always
+RestartSec=2
+[Install]
+WantedBy=graphical.target
 EOF
 
 # hook: install Electron (needs network during the build), create the live user, enable services
@@ -96,7 +120,9 @@ cat > config/hooks/live/0100-dani.hook.chroot <<'EOF'
 #!/bin/sh
 set -e
 cd /opt/dani-os/Computer-OS/shell && npm install --omit=dev --no-audit --no-fund electron
-systemctl enable dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
+systemctl enable dani-shell.service dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
+systemctl set-default graphical.target
+systemctl mask getty@tty1.service
 EOF
 chmod +x config/hooks/live/0100-dani.hook.chroot
 

@@ -82,8 +82,7 @@ def plan(cfg):
                           ("write", TARGET + "/etc/default/keyboard", f'XKBLAYOUT="{cfg["keyboard"]}"\n'),
                           ("write", TARGET + "/etc/default/locale", f'LANG={cfg["language"]}_{cfg["country"]}.UTF-8\n'),
                           ("write", TARGET + "/etc/dani-edition", cfg["edition"] + "\n"),
-                          ("write", TARGET + "/etc/systemd/system/getty@tty1.service.d/autologin.conf",
-                           f"[Service]\nExecStart=\nExecStart=-/sbin/agetty --autologin {u} --noclear %I $TERM\n")]
+                          ("write", TARGET + "/etc/systemd/system/dani-shell.service.d/user.conf", f"[Service]\nUser={u}\n")]
                          + ([("write", TARGET + "/opt/dani-os/Shared/profile.json", profile_json(cfg, u))] if cfg.get("username") else [])),
         ("יצירת משתמש", user_steps(cfg, u)),
         ("מטען אתחול", [["mount", "--bind", "/dev", TARGET + "/dev"], ["mount", "--bind", "/sys", TARGET + "/sys"], ["mount", "--bind", "/proc", TARGET + "/proc"],
