@@ -94,7 +94,11 @@ def plan(cfg):
     ]
     pk = EDITIONS[cfg["edition"]]
     if pk:
-        steps.append(("חבילות המהדורה", [("resolv",),["chroot", TARGET, "apt-get", "install", "-y", "--no-install-recommends"] + pk]))
+        # extra edition packages are best-effort: a missing package must never fail the whole installation
+        steps.append(("חבילות המהדורה", [("resolv",),
+            ("soft", ["chroot", TARGET, "dpkg", "--add-architecture", "i386"]),
+            ("soft", ["chroot", TARGET, "apt-get", "update"]),
+            ("soft", ["chroot", TARGET, "apt-get", "install", "-y", "--no-install-recommends"] + pk)]))
     steps.append(("ניקוי", [["umount", "-R", TARGET]]))
     return steps
 
@@ -131,6 +135,13 @@ def run_install(cfg, emit):
                     if os.path.islink(TARGET + "/etc/resolv.conf"):
                         os.remove(TARGET + "/etc/resolv.conf")
                     open(TARGET + "/etc/resolv.conf", "w").write(open("/etc/resolv.conf").read())
+            elif isinstance(c, tuple) and c[0] == "soft":
+                emit("$ " + shlex.join(c[1]) + "\n")
+                if EXECUTE:
+                    r = subprocess.run(c[1], capture_output=True, text=True)
+                    emit((r.stdout + r.stderr)[-500:])
+                    if r.returncode:
+                        emit(f"(לא הצליח, קוד {r.returncode}) – ממשיכים, אפשר להתקין מאוחר יותר מהחנות.\n")
             elif isinstance(c, tuple) and c[0] == "password":
                 emit(f"set password for {c[1]} (hash only)\n")
                 if EXECUTE:
