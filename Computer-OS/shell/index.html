@@ -13,6 +13,9 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:-apple-system,"SF Pro
  radial-gradient(800px 700px at 85% 80%,#b3101f 0,transparent 55%),
  radial-gradient(700px 500px at 70% 15%,#ffd9dd 0,transparent 60%),
  linear-gradient(135deg,#fff5f6,#ffc7cd 45%,#e11d2e)}
+#wm{position:fixed;right:48px;bottom:110px;width:min(340px,34vw);opacity:.92;pointer-events:none;filter:drop-shadow(0 12px 30px rgba(90,0,10,.35));z-index:1}
+#desk{z-index:2}
+body:not(.ready) #wm{display:none}
 #menubar{position:fixed;top:0;left:0;right:0;height:28px;background:var(--glass);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:13px;border-bottom:1px solid var(--line);z-index:9000}
 #menubar b{color:var(--red)}
 #desk{position:fixed;top:28px;bottom:0;left:0;right:0}
@@ -56,6 +59,7 @@ input.i{border:1px solid #ddd;border-radius:8px;padding:7px 10px;font:inherit;fo
 @keyframes bounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-22px)}65%{transform:translateY(-6px)}}
 .di.bounce{animation:bounce .6s ease 1}
 #menubar .l{display:flex;gap:18px;align-items:center}
+#menubar .logo img{height:20px;display:block}
 #menubar .logo{cursor:pointer;font-size:15px;color:var(--red);padding:2px 6px;border-radius:5px}
 #menubar .logo:hover{background:rgba(0,0,0,.08)}
 #menubar #appname{font-weight:700}
@@ -86,7 +90,8 @@ body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
 </head>
 <body>
 <div id="wall"></div>
-<div id="menubar"><div class="l"><span class="logo" id="logo">◉</span><span id="appname">Finder</span></div><div class="r"><span id="who"></span><span id="clock"></span></div></div>
+<img id="wm" src="../../Shared/branding/logo.png" alt="">
+<div id="menubar"><div class="l"><span class="logo" id="logo"><img src="../../Shared/branding/logo.png" alt="DANI OS"></span><span id="appname">Finder</span></div><div class="r"><span id="who"></span><span id="clock"></span></div></div>
 <div id="desk"></div>
 <div id="dock"></div>
 <script>
@@ -297,7 +302,7 @@ function settingsApp(root){
 /* app icons: drawn SVG squircles (red/white family), not emoji */
 const sq=(id,c1,c2,glyph)=>`<svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="56" height="56" rx="13" fill="url(#g${id})"/><rect width="56" height="28" rx="13" fill="#fff" opacity=".12"/>${glyph}</svg>`;
 const ICONS={
-  logo:sq('l','#ff5a69','#c8101f','<circle cx="28" cy="28" r="12" fill="none" stroke="#fff" stroke-width="5"/><circle cx="28" cy="28" r="4" fill="#fff"/>'),
+  logo:'<svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg"><rect width="56" height="56" rx="13" fill="#fff"/><image href="../../Shared/branding/logo.png" x="2" y="13" width="52" height="30"/></svg>',
   browser:sq('b','#ff6b78','#d0121f','<circle cx="28" cy="28" r="15" fill="none" stroke="#fff" stroke-width="3"/><polygon points="36,20 31,31 20,36 25,25" fill="#fff"/>'),
   store:sq('s','#ff8a5c','#e11d2e','<path d="M17 23h22l-2 18H19z" fill="#fff"/><path d="M22 23v-3a6 6 0 0 1 12 0v3" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'),
   phone:sq('p','#ff4d6d','#b3101f','<rect x="19" y="12" width="18" height="32" rx="4" fill="#fff"/><rect x="22" y="16" width="12" height="20" rx="1.5" fill="#e11d2e" opacity=".85"/><circle cx="28" cy="40" r="1.6" fill="#e11d2e"/>'),
@@ -322,7 +327,7 @@ const appIcon=a=>{
 };
 function aboutApp(root){root.innerHTML=`<div class="pad" style="text-align:center"><img src="../../Shared/branding/logo.png" alt="DANI OS" style="width:min(300px,90%)"><p><b>DANI OS ${OS_VERSION}</b></p><p style="color:#777;font-size:13px">מבוסס Debian GNU/Linux 13</p></div>`}
 const APPS={
-  about:{title:'אודות DANI OS',icon:ICONS.logo,w:420,h:340,hidden:true,render:aboutApp},
+  about:{title:'אודות DANI OS',icon:ICONS.logo,w:420,h:340,render:aboutApp},
   browser:{title:'דפדפן',icon:ICONS.browser,w:900,h:600,render:(r,w)=>browserApp(r,w)},
   store:{title:'חנות אפליקציות',icon:ICONS.store,w:720,h:560,render:storeApp},
   phone:{title:'חיבור טלפון',icon:ICONS.phone,w:480,h:400,render:phoneApp},
@@ -361,7 +366,7 @@ function setupAssistant(done){
 }
 function lockScreen(u){
   return new Promise(res=>{
-    const o=overlay(`<div class="boxm"><div class="av">${u.avatar||'👤'}</div><h2>${u.name.replace(/</g,'&lt;')}</h2><input class="i" id="lp" type="password" placeholder="הזן סיסמה" autofocus><div class="err" id="er"></div><button class="b" id="un">פתח</button></div>`);
+    const o=overlay(`<div class="boxm"><img src="../../Shared/branding/logo.png" alt="DANI OS" style="width:200px;margin:-8px auto 6px;display:block"><div class="av">${u.avatar||'👤'}</div><h2>${u.name.replace(/</g,'&lt;')}</h2><input class="i" id="lp" type="password" placeholder="הזן סיסמה" autofocus><div class="err" id="er"></div><button class="b" id="un">פתח</button></div>`);
     const tryUnlock=async()=>{const h=await pwHash($('#lp',o).value,unb64(u.salt));if(h===u.hash){o.remove();res()}else{$('#er',o).textContent='סיסמה שגויה';$('#lp',o).value=''}};
     $('#un',o).onclick=tryUnlock;$('#lp',o).addEventListener('keydown',e=>e.key==='Enter'&&tryUnlock());
   });
