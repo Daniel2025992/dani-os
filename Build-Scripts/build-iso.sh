@@ -20,6 +20,14 @@ lb config \
   --debian-installer none --apt-recommends false \
   --bootappend-live "boot=live components quiet splash live-config.username=dani live-config.user-fullname=DANI live-config.hostname=dani-os live-config.user-default-groups=audio,video,render,input,netdev,plugdev,sudo"
 
+# ---- DANI boot menu: our own 640x480 splash instead of Debian's hard hat ----
+# (the whole old menu picture, hat + text, is built from bootloaders/splash.svg; the live-build menu itself only uses the lower half)
+mkdir -p config/bootloaders
+cp -r /usr/share/live/build/bootloaders/. config/bootloaders/
+rm -f config/bootloaders/splash.svg
+cp "$ROOT/Shared/branding/boot-splash.png" config/bootloaders/splash.png
+sed -i 's/^title-text:.*/title-text: ""/' config/bootloaders/grub-pc/live-theme/theme.txt
+
 # ---- packages: minimal Wayland kiosk, NO traditional Linux desktop environment ----
 mkdir -p config/package-lists
 cat > config/package-lists/dani.list.chroot <<'EOF'
