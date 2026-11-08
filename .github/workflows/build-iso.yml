@@ -4,6 +4,8 @@ name: Build DANI OS (ISO + APK)
 # Result: one Release containing the ISO, its .sha256 and the Android APK.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   iso:
