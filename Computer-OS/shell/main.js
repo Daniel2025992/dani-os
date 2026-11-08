@@ -1,7 +1,8 @@
 // Electron wrapper: full-screen kiosk window that hosts the DANI OS shell (or the installer).
 // Pages are served from a tiny local HTTP server (127.0.0.1 only) because Chromium blocks fetch() on file:// URLs,
 // and the shell needs to read ../../Shared/*.json. <webview> is enabled so the built-in browser opens real sites.
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, session } = require('electron');
+let mainWin = null;
 const http = require('http'), fs = require('fs'), path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');          // .../DANI-OS or /opt/dani-os
@@ -32,11 +33,21 @@ function serve() {
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 app.whenReady().then(async () => {
   const port = await serve();
-  const win = new BrowserWindow({
+  const win = mainWin = new BrowserWindow({
     fullscreen: !dev, width: 1280, height: 800, backgroundColor: '#e11d2e', autoHideMenuBar: true,
     webPreferences: { webviewTag: true, contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   win.webContents.once('did-finish-load', () => { try { require('fs').writeFileSync('/tmp/dani-ready', 'ok'); } catch (e) {} });
+  // sites should treat the built-in browser like normal Chrome (many block the 'Electron' token)
+  try { session.defaultSession.setUserAgent(app.userAgentFallback.replace(/\sElectron\/\S+/, '').replace(/\s[a-z-]+\/\d[\d.]*(?=\sChrome|$)/i, (m) => /Chrome|Safari/.test(m) ? m : '')); } catch (e) {}
+  // target=_blank / window.open inside the browser -> a new DANI browser tab
+  app.on('web-contents-created', (e, wc) => {
+    if (wc.getType() !== 'webview') return;
+    wc.setWindowOpenHandler(({ url }) => {
+      if (/^https?:/i.test(url) && mainWin) mainWin.webContents.executeJavaScript('window.__openTab&&window.__openTab(' + JSON.stringify(url) + ')').catch(() => {});
+      return { action: 'deny' };
+    });
+  });
   win.loadURL(`http://127.0.0.1:${port}/${PAGE}`);
 });
 app.on('window-all-closed', () => app.quit());

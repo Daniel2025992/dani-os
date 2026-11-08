@@ -166,6 +166,8 @@ function browserApp(root,w,startUrl){
     f.src=u;view.appendChild(f);
     const t={f,title:'לשונית חדשה',url:u};tabs.push(t);select(tabs.length-1);
     f.addEventListener&&f.addEventListener('did-navigate',e=>nav(t,e.url));
+    f.addEventListener&&f.addEventListener('did-navigate-in-page',e=>{if(e.isMainFrame!==false){t.url=e.url;if(t===tabs[cur])url.value=e.url}});
+    f.addEventListener&&f.addEventListener('did-fail-load',e=>{if(e.isMainFrame&&e.errorCode!==-3&&t===tabs[cur])page(`<h3>לא ניתן לפתוח את הדף</h3><p>${e.validatedURL||''}</p><p>בדוק שיש חיבור לאינטרנט ונסה שוב (${e.errorDescription||e.errorCode}).</p>`)});
     f.addEventListener&&f.addEventListener('page-title-updated',e=>{t.title=e.title;draw()});
     if(u!=='about:blank')nav(t,u);
   }
@@ -176,16 +178,25 @@ function browserApp(root,w,startUrl){
   url.addEventListener('keydown',e=>{if(e.key==='Enter'){const u=normalizeUrl(url.value);const p=$('.pg',view);if(p)p.remove();tabs[cur].f.style.display='block';tabs[cur].f.src=u;nav(tabs[cur],u)}});
   root.addEventListener('click',e=>{
     const a=e.target.dataset?.a;if(!a)return;const f=tabs[cur].f;
-    if(a==='new')mk('about:blank');
+    if(a==='new'){mk('about:blank');home()}
     if(a==='reload')f.reload?f.reload():(f.src=f.src);
     if(a==='back')isElectron&&f.goBack&&f.goBack();
     if(a==='fwd')isElectron&&f.goForward&&f.goForward();
     if(a==='fav'){const fv=store.get('favs',[]);if(!fv.find(x=>x.u===tabs[cur].url)){fv.push({u:tabs[cur].url,t:tabs[cur].title});store.set('favs',fv);toast('נוסף למועדפים')}}
     if(a==='menu'){const p=page(`<h3>מועדפים</h3>${store.get('favs',[]).map(x=>`<div><a href="#" data-go="${x.u}">${x.t||x.u}</a></div>`).join('')||'<small>אין עדיין</small>'}<h3>היסטוריה</h3>${store.get('history',[]).slice(0,40).map(x=>`<div style="direction:ltr;text-align:left"><a href="#" data-go="${x.u}">${x.u}</a></div>`).join('')||'<small>ריק</small>'}<p><button class="b s" data-clear>נקה היסטוריה</button></p>`);p.onclick=ev=>{const g=ev.target.dataset.go;if(g){ev.preventDefault();p.remove();tabs[cur].f.style.display='block';tabs[cur].f.src=g;nav(tabs[cur],g)}if(ev.target.dataset.clear!==undefined){store.set('history',[]);p.remove()}}}
   });
-  w.openUrl=u=>mk(u);
+  function home(){
+    url.value='';const fv=store.get('favs',[]);const tiles=[['Google','https://www.google.com'],['YouTube','https://www.youtube.com'],['ויקיפדיה','https://he.wikipedia.org'],['Ynet','https://www.ynet.co.il'],['DuckDuckGo','https://duckduckgo.com'],['GitHub','https://github.com']];
+    const p=page(`<div style="max-width:560px;margin:40px auto;text-align:center"><img src="../../Shared/branding/logo.png" style="width:200px"><h2>חיפוש באינטרנט</h2><input class="i" id="hq" placeholder="חפש או הקלד כתובת" style="width:100%;direction:ltr;font-size:16px"><div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:22px">${tiles.concat(fv.map(x=>[x.t||x.u,x.u])).map(x=>`<a href="#" data-go="${x[1]}" style="padding:12px 16px;border-radius:12px;background:#fff1f2;color:#e11d2e;text-decoration:none">${x[0]}</a>`).join('')}</div></div>`);
+    const go=u=>{p.remove();tabs[cur].f.style.display='block';tabs[cur].f.src=u;nav(tabs[cur],u)};
+    p.onclick=ev=>{const g=ev.target.dataset&&ev.target.dataset.go;if(g){ev.preventDefault();go(g)}};
+    const hq=p.querySelector('#hq');hq.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&hq.value.trim())go(normalizeUrl(hq.value))});setTimeout(()=>hq.focus(),0);
+  }
+  w.openUrl=u=>{const p=$('.pg',view);if(p)p.remove();mk(u)};
+  window.__openTab=u=>{w.openUrl&&w.openUrl(u)};
   mk(startUrl||'about:blank');
-  if(!isElectron&&!startUrl)setTimeout(()=>{const p=page('<h3>דפדפן DANI</h3><p>בתוך DANI OS המותקן הדפדפן רץ על <b>Chromium webview</b> וטוען כל אתר. בתצוגה בדפדפן רגיל, אתרים שחוסמים הטמעה (X-Frame-Options) לא יוצגו — זו מגבלת הדפדפן המארח, לא של המערכת.</p>')},0);
+  if(!startUrl)setTimeout(home,0);
+  if(false)setTimeout(()=>{const p=page('<h3>דפדפן DANI</h3><p>בתוך DANI OS המותקן הדפדפן רץ על <b>Chromium webview</b> וטוען כל אתר. בתצוגה בדפדפן רגיל, אתרים שחוסמים הטמעה (X-Frame-Options) לא יוצגו — זו מגבלת הדפדפן המארח, לא של המערכת.</p>')},0);
 }
 
 /* ---------- App Store ---------- */
@@ -214,11 +225,14 @@ async function storeApp(root){
       ${has?`<button class="b" id="op">פתח</button> <button class="b s" id="rm">הסר</button>${has!==a.version?` <button class="b" id="up">עדכן ל-${a.version}</button>`:''}`:`<button class="b" id="in">התקן</button>`}</div>`;
       $('#bk',root).onclick=()=>draw();
       const doInstall=async()=>{
-        if(a.type==='native'){const r=await agent('/api/apt/install',{package:a.package}).catch(e=>({ok:false,msg:'סוכן המערכת לא זמין'}));if(!r.ok){toast('התקנה מקורית: '+(r.msg||'נכשלה'));return}}
+        if(a.type==='native'){
+          const btn=$('#in',root)||$('#up',root);if(btn){btn.disabled=true;btn.textContent='מתקין… זה יכול לקחת כמה דקות'}toast('מתקין את '+a.name+'… (צריך אינטרנט)');
+          const r=await agent('/api/apt/install',{package:a.package}).catch(e=>({ok:false,msg:'סוכן המערכת לא זמין'}));
+          if(!r.ok){toast('ההתקנה נכשלה: '+(r.msg||'').slice(0,160));if(btn){btn.disabled=false;btn.textContent='נסה שוב'}return}}
         const n=inst();n[a.id]=a.version;store.set('installed',n);toast(a.name+' הותקן');draw(a.id)};
       $('#in',root)&&($('#in',root).onclick=doInstall);$('#up',root)&&($('#up',root).onclick=doInstall);
-      $('#rm',root)&&($('#rm',root).onclick=()=>{const n=inst();delete n[a.id];store.set('installed',n);draw(a.id)});
-      $('#op',root)&&($('#op',root).onclick=()=>a.type==='pwa'?openApp('browser')||setTimeout(()=>wins.browser.openUrl(a.url),50):toast('האפליקציה המקורית נפתחת משולחן העבודה של המערכת'));
+      $('#rm',root)&&($('#rm',root).onclick=async()=>{if(a.type==='native')await agent('/api/apt/remove',{package:a.package}).catch(()=>{});const n=inst();delete n[a.id];store.set('installed',n);draw(a.id)});
+      $('#op',root)&&($('#op',root).onclick=()=>a.type==='pwa'?openApp('browser')||setTimeout(()=>wins.browser.openUrl(a.url),50):agent('/api/app/launch',{package:a.package}).then(r=>toast(r.ok?a.name+' נפתח':(r.msg||'הפתיחה נכשלה'))).catch(()=>toast('סוכן המערכת לא זמין')));
       return}
     const list=catalog.apps.filter(a=>(!cat||a.category===cat)&&(!q||(a.name+a.desc).includes(q)));
     const upd=catalog.apps.filter(a=>I[a.id]&&I[a.id]!==a.version);
