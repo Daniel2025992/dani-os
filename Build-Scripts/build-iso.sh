@@ -35,8 +35,8 @@ cat > config/hooks/live/0900-dani-splash.hook.binary <<'EOF'
 #!/bin/sh
 set -e
 echo "DANI splash hook: cwd=$(pwd)"
-find . -name 'splash.png' -not -path './chroot/*' 2>/dev/null | while read -r f; do
-  cp -f config/dani-splash.png "$f" && echo "DANI splash installed: $f"
+find . -name 'splash.png' 2>/dev/null | while read -r f; do
+  cp -f ../config/dani-splash.png "$f" && echo "DANI splash installed: $f"
 done
 true
 EOF
