@@ -149,11 +149,21 @@ RestartSec=3
 WantedBy=graphical.target
 EOF
 
-# hook: install Electron (needs network during the build), create the live user, enable services
+# hook: install Electron with retries (GitHub/Electron downloads can occasionally return HTTP 504)
 cat > config/hooks/live/0100-dani.hook.chroot <<'EOF'
 #!/bin/sh
-set -e
-cd /opt/dani-os/Computer-OS/shell && npm install --omit=dev --no-audit --no-fund electron
+set -eu
+cd /opt/dani-os/Computer-OS/shell
+attempt=1
+until npm install --omit=dev --no-audit --no-fund electron; do
+  if [ "$attempt" -ge 4 ]; then
+    echo "DANI OS ERROR: Electron installation failed after $attempt attempts."
+    exit 1
+  fi
+  echo "Electron download failed; retrying ($attempt/3) in 15 seconds..."
+  attempt=$((attempt + 1))
+  sleep 15
+done
 systemctl enable dani-shell.service dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
 systemctl set-default graphical.target
 systemctl mask getty@tty1.service
