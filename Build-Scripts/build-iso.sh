@@ -203,6 +203,37 @@ RestartSec=5
 WantedBy=graphical.target
 EOF
 
+# self-diagnosis: 70 s after boot, if the desktop window never appeared, print what is going on straight onto the screen (root, tty1)
+echo "${GITHUB_RUN_NUMBER:-dev}" > config/includes.chroot/etc/dani-build
+cat > config/includes.chroot/usr/local/bin/dani-diag <<'EOF'
+#!/bin/sh
+sleep 70
+[ -e /tmp/dani-ready ] && exit 0
+{
+  chvt 1 2>/dev/null
+  echo
+  echo "=============== DANI OS DIAGNOSTICS (build $(cat /etc/dani-build 2>/dev/null)) ==============="
+  echo "The desktop window did not appear. Please photograph this whole screen."
+  echo "--- dani-shell status"; systemctl status dani-shell --no-pager -l 2>&1 | tail -n 12
+  echo "--- processes"; ps -eo user,pid,etime,args 2>/dev/null | grep -E "dani-session|cage|electron|seatd" | grep -v grep | cut -c1-150 | head -n 8
+  echo "--- /dev/dri"; ls -l /dev/dri 2>&1 | head -n 6
+  echo "--- sessions"; loginctl list-sessions --no-pager 2>&1 | head -n 5
+  echo "--- session log"; tail -n 25 /tmp/dani-session.log 2>&1
+  echo "--- journal"; journalctl -u dani-shell -b --no-pager 2>&1 | tail -n 12 | cut -c1-170
+} > /dev/tty1 2>&1
+EOF
+chmod +x config/includes.chroot/usr/local/bin/dani-diag
+cat > config/includes.chroot/etc/systemd/system/dani-diag.service <<'EOF'
+[Unit]
+Description=DANI OS startup self-diagnosis
+After=dani-shell.service
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/dani-diag
+[Install]
+WantedBy=multi-user.target
+EOF
+
 # hook: install Electron with retries (GitHub/Electron downloads can occasionally return HTTP 504)
 cat > config/hooks/live/0100-dani.hook.chroot <<'EOF'
 #!/bin/sh
@@ -218,7 +249,7 @@ until npm install --omit=dev --no-audit --no-fund electron; do
   attempt=$((attempt + 1))
   sleep 15
 done
-systemctl enable dani-shell.service dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
+systemctl enable dani-diag.service dani-shell.service dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
 systemctl set-default graphical.target
 systemctl mask getty@tty1.service
 EOF
