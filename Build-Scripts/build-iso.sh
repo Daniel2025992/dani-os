@@ -52,6 +52,8 @@ libpam-systemd dbus seatd fonts-noto-core fonts-noto-ui-core fonts-noto-color-em
 nodejs npm python3 openssl
 grub-efi-amd64 grub-efi-amd64-signed shim-signed efibootmgr gdisk dosfstools e2fsprogs squashfs-tools util-linux
 pipewire pipewire-pulse wireplumber
+# Do not install the legacy Broadcom STA firmware installer: it can fail in chroot builds and is not needed for VMware/VirtualBox.
+firmware-b43-installer-
 EOF
 
 # ---- files copied into the image ----

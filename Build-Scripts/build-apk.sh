@@ -9,5 +9,5 @@ cd "$ROOT/Mobile-App"
 echo "sdk.dir=$SDK" > local.properties
 if [ -x ./gradlew ]; then ./gradlew assembleDebug; else gradle assembleDebug; fi
 mkdir -p "$ROOT/Mobile-App/out"
-cp app/build/outputs/apk/debug/app-debug.apk "$ROOT/Mobile-App/out/DANI-OS-Mobile-0.1.0-debug.apk"
+cp app/build/outputs/apk/debug/app-debug.apk "$ROOT/Mobile-App/out/DANI-OS-Mobile-0.1.18-debug.apk"
 echo "Done: Mobile-App/out/DANI-OS-Mobile-0.1.0-debug.apk"
