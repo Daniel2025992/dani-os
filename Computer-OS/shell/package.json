@@ -1,6 +1,6 @@
 {
   "name": "dani-os-shell",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "main": "main.js",
   "description": "DANI OS desktop shell",
   "scripts": {
