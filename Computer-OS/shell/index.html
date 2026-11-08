@@ -98,7 +98,7 @@ body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
 "use strict";
 const $=(s,r=document)=>r.querySelector(s);
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem('dani.'+k))??d}catch{return d}},set:(k,v)=>localStorage.setItem('dani.'+k,JSON.stringify(v))};
-const OS_VERSION="0.1.0";
+const OS_VERSION="0.1.12";
 const AGENT=store.get('agent','http://127.0.0.1:7788');      // Computer-OS/agent/agent.js
 const PAIR=store.get('pairServer','http://127.0.0.1:7799');  // Shared/pairing-server.js
 const isElectron=!!(window.process&&window.process.versions&&window.process.versions.electron)||navigator.userAgent.includes('Electron');
