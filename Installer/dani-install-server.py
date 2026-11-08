@@ -15,6 +15,7 @@ EXECUTE = os.environ.get("DANI_INSTALL_EXECUTE") == "1"
 LIVE = os.path.exists("/run/live/medium") or os.environ.get("DANI_ALLOW_NON_LIVE") == "1"
 SQUASH = os.environ.get("DANI_SQUASHFS", "/run/live/medium/live/filesystem.squashfs")
 TARGET = "/mnt/dani-target"
+DONE = False                                  # set only after a successful real installation; /reboot is refused before that
 EDITIONS = {"Home": [], "Pro": ["git", "build-essential", "python3-pip", "nodejs", "npm"], "Gamer": ["steam-installer", "mesa-vulkan-drivers"]}
 
 
@@ -157,6 +158,8 @@ def run_install(cfg, emit):
                     if r.returncode:
                         emit(f"נכשל (קוד {r.returncode}) – עוצר.\n")
                         return
+    global DONE
+    DONE = EXECUTE
     emit("\nההתקנה הסתיימה." if EXECUTE else "\nסוף DRY-RUN.")
 
 
@@ -176,6 +179,12 @@ class H(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def do_POST(self):
+        if self.path == "/reboot":
+            if not (DONE and EXECUTE):
+                self.send_response(409); self._cors(); self.end_headers(); return
+            self.send_response(200); self._cors(); self.end_headers()
+            subprocess.Popen(["systemctl", "reboot"])
+            return
         if self.path != "/install":
             self.send_response(404); self.end_headers(); return
         cfg = json.loads(self.rfile.read(min(int(self.headers.get("content-length", 0)), 4_000_000)) or b"{}")

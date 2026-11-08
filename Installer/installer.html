@@ -106,6 +106,19 @@ async function install() {
   const r = await fetch(AGENT + '/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...cfg, confirm: cfg.disk }) });
   const rd = r.body.getReader(), dec = new TextDecoder();
   for (;;) { const { done, value } = await rd.read(); if (done) break; $('#log').textContent += dec.decode(value); $('#log').scrollTop = 1e9; }
+  const ok = $('#log').textContent.includes('ההתקנה הסתיימה.');
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:99;padding:24px;font-family:inherit';
+  if (ok) {
+    box.innerHTML = '<img src="../Shared/branding/logo.png" style="width:min(320px,60vw)"><h1 style="color:#e11d2e">ההתקנה הושלמה</h1><p id="cd" style="font-size:20px"></p><button id="rb" style="margin-top:12px">הפעל מחדש עכשיו</button><p style="color:#666;max-width:420px;margin-top:18px">אם אחרי ההפעלה מחדש חוזר מסך ההתקנה, נתק את קובץ ה-ISO (CD/DVD) מהמכונה הווירטואלית והפעל שוב.</p>';
+    document.body.appendChild(box);
+    const reboot = () => fetch(AGENT + '/reboot', { method: 'POST' }).catch(() => {});
+    let n = 15; const t = setInterval(() => { $('#cd').textContent = 'המחשב יופעל מחדש לתוך DANI OS בעוד ' + n + ' שניות'; if (n-- <= 0) { clearInterval(t); reboot(); } }, 1000);
+    $('#rb').onclick = () => { clearInterval(t); $('#cd').textContent = 'מופעל מחדש…'; reboot(); };
+  } else {
+    box.innerHTML = '<h1 style="color:#e11d2e">ההתקנה לא הסתיימה</h1><p>ראה את הלוג מתחת כדי להבין למה, וצלם אותו אם צריך עזרה.</p><button id="cl">סגור</button>';
+    document.body.appendChild(box); $('#cl').onclick = () => { box.remove(); $('#next').disabled = false; installing = false; };
+  }
 }
 function go(d) { if (d > 0 && !valid()) { $('#err') && ($('#err').textContent = 'שם משתמש: אותיות לועזיות קטנות/ספרות (2–31 תווים). אם הוזן אימייל — הוא חייב להיות תקין.'); return; } step = Math.max(0, Math.min(screens.length - 1, step + d)); render(); }
 $('#next').onclick = () => step === screens.length - 1 ? install() : go(1);
