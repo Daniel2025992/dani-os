@@ -19,7 +19,7 @@ lb config \
   --iso-application "DANI OS" --iso-volume "DANI-OS" --iso-publisher "DANI" \
   --debian-installer none --apt-recommends false \
   --firmware-chroot false --firmware-binary false \
-  --bootappend-live "boot=live components quiet splash live-config.username=dani live-config.user-fullname=DANI live-config.hostname=dani-os live-config.user-default-groups=audio,video,render,input,netdev,plugdev,sudo"
+  --bootappend-live "boot=live components quiet plymouth.enable=0 live-config.username=dani live-config.user-fullname=DANI live-config.hostname=dani-os live-config.user-default-groups=audio,video,render,input,netdev,plugdev,sudo"
 
 # ---- DANI boot menu: our own 640x480 splash instead of Debian's hard hat ----
 # (the whole old menu picture, hat + text, is built from bootloaders/splash.svg; the live-build menu itself only uses the lower half)
@@ -46,15 +46,19 @@ if [ -f "$ISOLINUX_CFG" ]; then
   fi
 fi
 
-# UEFI uses GRUB; give it the same automatic 5-second start.
-GRUB_CFG=config/bootloaders/grub-pc/grub.cfg
-if [ -f "$GRUB_CFG" ]; then
-  if grep -qE '^[[:space:]]*set timeout=' "$GRUB_CFG"; then
-    sed -i -E 's/^[[:space:]]*set timeout=.*/set timeout=5/' "$GRUB_CFG"
-  else
-    sed -i '1i set timeout=5' "$GRUB_CFG"
+# GRUB (BIOS and UEFI): automatic 5-second start with the DANI logo.
+for GRUB_CFG in config/bootloaders/grub-pc/grub.cfg config/bootloaders/grub-efi/grub.cfg; do
+  if [ -f "$GRUB_CFG" ]; then
+    if grep -qE '^[[:space:]]*set timeout=' "$GRUB_CFG"; then
+      sed -i -E 's/^[[:space:]]*set timeout=.*/set timeout=5/' "$GRUB_CFG"
+    else
+      sed -i '1i set timeout=5' "$GRUB_CFG"
+    fi
+    if grep -qE '^[[:space:]]*set default=' "$GRUB_CFG"; then
+      sed -i -E 's/^[[:space:]]*set default=.*/set default=0/' "$GRUB_CFG"
+    fi
   fi
-fi
+done
 
 # live-build regenerates the menu picture (800x600 hard hat) later in the build, so put ours in AFTER everything else (binary hook)
 cp "$ROOT/Shared/branding/boot-splash.png" config/dani-splash.png
@@ -75,6 +79,7 @@ mkdir -p config/package-lists
 cat > config/package-lists/dani.list.chroot <<'EOF'
 linux-image-amd64 live-boot systemd-sysv sudo network-manager
 cage xwayland libgbm1 libgtk-3-0t64 libnss3 libxss1 libasound2t64 libxkbcommon0 libdrm2 libgl1-mesa-dri libegl1 mesa-vulkan-drivers
+xserver-xorg-core xinit xserver-xorg-video-vmware xserver-xorg-video-fbdev xserver-xorg-video-vesa xserver-xorg-input-libinput
 libpam-systemd dbus seatd fonts-noto-core fonts-noto-ui-core fonts-noto-color-emoji fonts-dejavu-core ca-certificates
 nodejs npm python3 openssl
 grub-efi-amd64 grub-efi-amd64-signed shim-signed efibootmgr gdisk dosfstools e2fsprogs squashfs-tools util-linux
@@ -131,36 +136,54 @@ EOF
 mkdir -p config/includes.chroot/usr/local/bin
 cat > config/includes.chroot/usr/local/bin/dani-session <<'EOF'
 #!/bin/sh
-# Starts the DANI desktop. VM-friendly (software rendering). If it fails, show WHY on screen instead of a black screen.
+# Prefer X11 for VMware compatibility; use Cage/Wayland only as a fallback.
 if [ -d /run/live/medium ]; then PAGE=Installer/installer.html; else PAGE=Computer-OS/shell/index.html; fi
-export ELECTRON_OZONE_PLATFORM_HINT=wayland
-export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1 LIBSEAT_BACKEND=logind
+export DANI_PAGE="$PAGE"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export ELECTRON_OZONE_PLATFORM_HINT=x11
 LOG=/tmp/dani-session.log
-# Do not let a compositor/Electron failure terminate this script before diagnostics are shown.
 set +e
+
 if [ ! -x /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron ]; then
   echo "DANI OS ERROR: Electron is missing. Check the ISO build dependency installation." | tee "$LOG"
   code=127
 else
-  cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --ozone-platform=wayland --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >"$LOG" 2>&1
+  startx /usr/local/bin/dani-xsession -- :0 vt1 -keeptty -nolisten tcp >"$LOG" 2>&1
   code=$?
+  if [ "$code" -ne 0 ]; then
+    echo "X11 startup failed (exit code $code); trying Wayland/Cage fallback." >>"$LOG"
+    export ELECTRON_OZONE_PLATFORM_HINT=wayland
+    export WLR_RENDERER_ALLOW_SOFTWARE=1 WLR_NO_HARDWARE_CURSORS=1 LIBSEAT_BACKEND=logind
+    cage -s -- /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --ozone-platform=wayland --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="$PAGE" >>"$LOG" 2>&1
+    code=$?
+  fi
 fi
+
 clear
 echo "DANI OS: the desktop stopped (exit code $code). Details:"
 echo "user=$(id -un) XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
-tail -n 40 "$LOG"
+tail -n 50 "$LOG"
 echo
-echo "Retrying in 60 seconds..."
-sleep 60
+echo "Retrying in 30 seconds..."
+sleep 30
 exit 1
 EOF
 chmod +x config/includes.chroot/usr/local/bin/dani-session
+
+cat > config/includes.chroot/usr/local/bin/dani-xsession <<'EOF'
+#!/bin/sh
+# X11 session entry point. Electron is the only fullscreen desktop application.
+export DISPLAY="${DISPLAY:-:0}"
+exec /opt/dani-os/Computer-OS/shell/node_modules/.bin/electron --no-sandbox --disable-gpu --disable-gpu-compositing --disable-dev-shm-usage --ozone-platform=x11 --enable-unsafe-swiftshader /opt/dani-os/Computer-OS/shell/main.js --page="${DANI_PAGE:-Computer-OS/shell/index.html}"
+EOF
+chmod +x config/includes.chroot/usr/local/bin/dani-xsession
 cat > config/includes.chroot/etc/systemd/system/dani-shell.service <<'EOF'
 [Unit]
 Description=DANI OS desktop (kiosk session on tty1)
-After=systemd-user-sessions.service live-config.service dbus.service getty@tty1.service
+After=systemd-user-sessions.service live-config.service dbus.service
 Conflicts=getty@tty1.service
+StartLimitIntervalSec=120
+StartLimitBurst=3
 [Service]
 User=dani
 PAMName=login
@@ -174,9 +197,7 @@ UtmpIdentifier=tty1
 UtmpMode=user
 ExecStart=/usr/local/bin/dani-session
 Restart=on-failure
-RestartSec=3
-StartLimitIntervalSec=60
-StartLimitBurst=3
+RestartSec=5
 [Install]
 WantedBy=graphical.target
 EOF
