@@ -19,7 +19,7 @@ lb config \
   --iso-application "DANI OS" --iso-volume "DANI-OS" --iso-publisher "DANI" \
   --debian-installer none --apt-recommends false \
   --firmware-chroot false --firmware-binary false \
-  --bootappend-live "boot=live components plymouth.enable=0 systemd.show_status=1 loglevel=5 live-config.hostname=dani-os"
+  --bootappend-live "boot=live components quiet splash loglevel=0 systemd.show_status=false rd.udev.log_level=0 vt.global_cursor_default=0 live-config.hostname=dani-os"
 
 # ---- DANI boot menu: our own 640x480 splash instead of Debian's hard hat ----
 # (the whole old menu picture, hat + text, is built from bootloaders/splash.svg; the live-build menu itself only uses the lower half)
@@ -83,7 +83,7 @@ xserver-xorg-core xinit xserver-xorg-video-vmware xserver-xorg-video-fbdev xserv
 libpam-systemd dbus seatd fonts-noto-core fonts-noto-ui-core fonts-noto-color-emoji fonts-dejavu-core ca-certificates
 nodejs npm python3 openssl
 grub-efi-amd64 grub-efi-amd64-signed shim-signed efibootmgr gdisk dosfstools e2fsprogs squashfs-tools util-linux
-pipewire pipewire-pulse wireplumber
+pipewire pipewire-pulse wireplumber plymouth
 # Do not install the legacy Broadcom STA firmware installer: it can fail in chroot builds and is not needed for VMware/VirtualBox.
 firmware-b43-installer-
 EOF
@@ -196,12 +196,19 @@ TTYVHangup=no
 TTYVTDisallocate=no
 UtmpIdentifier=tty1
 UtmpMode=user
+ExecStartPre=-+/usr/bin/plymouth quit
 ExecStart=/usr/local/bin/dani-session
 Restart=on-failure
 RestartSec=5
 [Install]
 WantedBy=graphical.target
 EOF
+
+# boot splash theme (Plymouth): DANI OS logo, white/red
+T=config/includes.chroot/usr/share/plymouth/themes/dani
+mkdir -p "$T"
+cp "$ROOT/Shared/branding/plymouth/dani.plymouth" "$ROOT/Shared/branding/plymouth/dani.script" "$ROOT/Shared/branding/plymouth/bar.png" "$T/"
+cp "$ROOT/Shared/branding/logo.png" "$T/logo.png"
 
 # self-diagnosis: 70 s after boot, if the desktop window never appeared, print what is going on straight onto the screen (root, tty1)
 echo "${GITHUB_RUN_NUMBER:-dev}" > config/includes.chroot/etc/dani-build
@@ -221,6 +228,7 @@ OUT=/tmp/dani-diag.txt
   echo "--- journal"; journalctl -u dani-shell -b --no-pager 2>&1 | tail -n 10 | cut -c1-170
 } > "$OUT" 2>&1
 # the compositor owns the screen (graphics mode) and hides text: stop it so the text console comes back, then print
+plymouth quit 2>/dev/null
 systemctl stop dani-shell.service 2>/dev/null
 pkill -f cage 2>/dev/null; pkill -f electron 2>/dev/null
 sleep 2
@@ -258,6 +266,8 @@ done
 G=""; for g in audio video render input netdev plugdev sudo; do getent group $g >/dev/null && G="$G,$g"; done
 useradd -m -u 1500 -s /bin/bash -G "${G#,}" -c DANI dani
 passwd -d dani
+plymouth-set-default-theme dani || echo "DANI: plymouth theme not set"
+update-initramfs -u -k all
 systemctl enable dani-diag.service dani-shell.service dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
 systemctl set-default graphical.target
 systemctl mask getty@tty1.service

@@ -82,6 +82,7 @@ def plan(cfg):
                           ("write", TARGET + "/etc/default/keyboard", f'XKBLAYOUT="{cfg["keyboard"]}"\n'),
                           ("write", TARGET + "/etc/default/locale", f'LANG={cfg["language"]}_{cfg["country"]}.UTF-8\n'),
                           ("write", TARGET + "/etc/dani-edition", cfg["edition"] + "\n"),
+                          ("write", TARGET + "/etc/default/grub.d/dani.cfg", 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash loglevel=0 systemd.show_status=false vt.global_cursor_default=0"\nGRUB_TIMEOUT=0\nGRUB_TIMEOUT_STYLE=hidden\nGRUB_DISTRIBUTOR="DANI OS"\n'),
                           ("write", TARGET + "/etc/systemd/system/dani-shell.service.d/user.conf", f"[Service]\nUser={u}\n")]
                          + ([("write", TARGET + "/opt/dani-os/Shared/profile.json", profile_json(cfg, u))] if cfg.get("username") else [])),
         ("יצירת משתמש", user_steps(cfg, u)),

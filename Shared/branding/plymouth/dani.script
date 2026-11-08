@@ -1,0 +1,25 @@
+# DANI OS boot splash: white screen, DANI OS logo in the middle, slow red pulse bar under it.
+Window.SetBackgroundTopColor(1.0, 1.0, 1.0);
+Window.SetBackgroundBottomColor(1.0, 0.88, 0.89);
+
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+
+logo = Image("logo.png");
+lw = sw * 0.38;
+lh = logo.GetHeight() * lw / logo.GetWidth();
+logo_s = Sprite(logo.Scale(lw, lh));
+logo_s.SetPosition(sw / 2 - lw / 2, sh / 2 - lh / 2 - sh * 0.05, 10);
+
+bar_w = lw * 0.6;
+bar_h = 6;
+bar_img = Image("bar.png");
+bar_s = Sprite(bar_img.Scale(bar_w, bar_h));
+bar_s.SetPosition(sw / 2 - bar_w / 2, sh / 2 + lh / 2 + sh * 0.03, 10);
+
+t = 0;
+fun refresh() {
+  t++;
+  bar_s.SetOpacity(0.55 + 0.45 * Math.Sin(t / 12));
+}
+Plymouth.SetRefreshFunction(refresh);

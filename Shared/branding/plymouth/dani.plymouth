@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=DANI OS
+Description=DANI OS boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/dani
+ScriptFile=/usr/share/plymouth/themes/dani/dani.script
