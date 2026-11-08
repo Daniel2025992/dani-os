@@ -28,6 +28,19 @@ rm -f config/bootloaders/splash.svg
 cp "$ROOT/Shared/branding/boot-splash.png" config/bootloaders/splash.png
 sed -i 's/^title-text:.*/title-text: ""/' config/bootloaders/grub-pc/live-theme/theme.txt
 
+# live-build regenerates the menu picture (800x600 hard hat) later in the build, so put ours in AFTER everything else (binary hook)
+cp "$ROOT/Shared/branding/boot-splash.png" config/dani-splash.png
+mkdir -p config/hooks/live
+cat > config/hooks/live/0900-dani-splash.hook.binary <<'EOF'
+#!/bin/sh
+set -e
+for f in binary/boot/grub/splash.png binary/isolinux/splash.png; do
+  [ -f "$f" ] && cp -f config/dani-splash.png "$f" && echo "DANI splash installed: $f"
+done
+true
+EOF
+chmod +x config/hooks/live/0900-dani-splash.hook.binary
+
 # ---- packages: minimal Wayland kiosk, NO traditional Linux desktop environment ----
 mkdir -p config/package-lists
 cat > config/package-lists/dani.list.chroot <<'EOF'
