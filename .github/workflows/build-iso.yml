@@ -82,19 +82,19 @@ jobs:
       - name: Name the files just dani-os
         run: |
           cd dist
-          mv *.iso dani-os-build-21.iso
-          mv DANI-OS-Mobile.apk dani-os-build-21.apk
+          mv *.iso dani-os-build-${{ github.run_number }}.iso
+          mv DANI-OS-Mobile.apk dani-os-build-${{ github.run_number }}.apk
           rm -f *.sha256
-          sha256sum dani-os-build-21.iso > dani-os-build-21.iso.sha256
+          sha256sum dani-os-build-${{ github.run_number }}.iso > dani-os-build-${{ github.run_number }}.iso.sha256
           ls -lh
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-21
-          name: DANI OS Build 21
-          make_latest: true
+          tag_name: build-${{ github.run_number }}
+          name: DANI OS Build ${{ github.run_number }}
+          make_latest: false
           body: "DANI OS: ISO for PC + APK for Android. Use DANI-Setup.bat from the Windows-Setup folder to download and install both."
           files: |
-            dist/dani-os-build-21.iso
-            dist/dani-os-build-21.iso.sha256
-            dist/dani-os-build-21.apk
+            dist/dani-os-build-${{ github.run_number }}.iso
+            dist/dani-os-build-${{ github.run_number }}.iso.sha256
+            dist/dani-os-build-${{ github.run_number }}.apk

@@ -19,7 +19,7 @@ lb config \
   --iso-application "DANI OS" --iso-volume "DANI-OS" --iso-publisher "DANI" \
   --debian-installer none --apt-recommends false \
   --firmware-chroot false --firmware-binary false \
-  --bootappend-live "boot=live components quiet plymouth.enable=0 live-config.username=dani live-config.user-fullname=DANI live-config.hostname=dani-os live-config.user-default-groups=audio,video,render,input,netdev,plugdev,sudo"
+  --bootappend-live "boot=live components plymouth.enable=0 systemd.show_status=1 loglevel=5 live-config.username=dani live-config.user-fullname=DANI live-config.hostname=dani-os live-config.user-default-groups=audio,video,render,input,netdev,plugdev,sudo"
 
 # ---- DANI boot menu: our own 640x480 splash instead of Debian's hard hat ----
 # (the whole old menu picture, hat + text, is built from bootloaders/splash.svg; the live-build menu itself only uses the lower half)
