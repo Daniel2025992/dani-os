@@ -145,10 +145,12 @@
 
   P.wall = async (pg) => {
     const w = store.get('wall', { kind: 'preset', id: 'red' }), ac = store.get('accent', 0);
-    let pics = []; try { const l = await ag('/api/fs/list?path=' + encodeURIComponent('/Pictures')); pics = (l.items || l.entries || []).filter(f => !f.dir && /\.(png|jpe?g|webp|gif)$/i.test(f.name)).slice(0, 12); } catch { }
+    let pics = [];
+    for (const d of ['/Pictures', '/Pictures/DANI-Phone']) { try { const l = await ag('/api/fs/list?path=' + encodeURIComponent(d)); pics.push(...(l.items || l.entries || []).filter(f => !f.dir && /\.(png|jpe?g|webp|gif)$/i.test(f.name)).map(f => ({ ...f, rel: d + '/' + f.name }))); } catch { } }
+    pics = pics.slice(0, 18);
     if (!pg.isConnected) return;
     pg.innerHTML = `<h3>רקע ועיצוב</h3><div class="sc"><div class="row"><b>רקע שולחן העבודה</b></div><div class="walls">${WALLS.map(x => `<div style="background:${x.css}" data-w="${x.id}" class="${w.kind === 'preset' && w.id === x.id ? 'on' : ''}"><span>${x.name}</span></div>`).join('')}</div></div>
-    ${pics.length ? `<div class="sc"><div class="row"><div class="g"><b>התמונות שלך</b><small>מהתיקייה תמונות</small></div></div><div class="walls">${pics.map(f => `<div style="background:center/cover url('${rawUrl('/Pictures/' + f.name)}')" data-p="/Pictures/${E(f.name)}" class="${w.kind === 'img' && w.path === '/Pictures/' + f.name ? 'on' : ''}"></div>`).join('')}</div></div>` : '<div class="sc"><div class="dim">הוסף תמונות לתיקייה "תמונות" (בתוכנת הקבצים) והן יופיעו כאן כרקע.</div></div>'}
+    ${pics.length ? `<div class="sc"><div class="row"><div class="g"><b>התמונות שלך</b><small>מהתיקייה תמונות</small></div></div><div class="walls">${pics.map(f => `<div style="background:center/cover url('${rawUrl(f.rel)}')" data-p="${E(f.rel)}" class="${w.kind === 'img' && w.path === f.rel ? 'on' : ''}"></div>`).join('')}</div></div>` : '<div class="sc"><div class="dim">הוסף תמונות לתיקייה "תמונות" (בתוכנת הקבצים) והן יופיעו כאן כרקע.</div></div>'}
     <div class="sc"><div class="row"><b>צבע ראשי</b></div><div class="acc">${ACCENTS.map((a, i) => `<i style="background:${a[0]}" data-a="${i}" title="${a[2]}" class="${i === ac ? 'on' : ''}"></i>`).join('')}</div></div>
     <div class="sc"><div class="row"><div class="g">הצג את הלוגו על שולחן העבודה</div>${sw(store.get('wm', true), 'wm')}</div></div>`;
     pg.onclick = e => {

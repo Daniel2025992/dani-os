@@ -5,8 +5,19 @@ const assert = require('assert');
 
 // ---- minimal ntfy-compatible mock ----
 const topics = new Map(); let seq = 0;
+const blobs = new Map();
 const mock = http.createServer((req, res) => {
-  const u = new URL(req.url, 'http://x'); const m = /^\/([\w-]+)(\/json)?$/.exec(u.pathname);
+  const u = new URL(req.url, 'http://x');
+  let fm = /^\/file\/(\w+)$/.exec(u.pathname);
+  if (fm && req.method === 'GET') { const b = blobs.get(fm[1]); res.writeHead(b ? 200 : 404, { 'access-control-allow-origin': '*' }); return res.end(b); }
+  if (req.method === 'PUT') {                      // ntfy attachment upload
+    const tp = u.pathname.slice(1); const parts = []; req.on('data', c => parts.push(c)); req.on('end', () => {
+      const id = 'blob' + (++seq); blobs.set(id, Buffer.concat(parts)); const t = topics.get(tp) || { msgs: [], subs: new Set() }; topics.set(tp, t);
+      const url = 'http://127.0.0.1:' + mock.address().port + '/file/' + id;
+      const msg = { id: 'm' + (++seq), time: Math.floor(Date.now() / 1000), event: 'message', topic: tp, message: 'attachment', attachment: { url } }; t.msgs.push(msg);
+      res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' }); res.end(JSON.stringify(msg));
+    }); return;
+  } const m = /^\/([\w-]+)(\/json)?$/.exec(u.pathname);
   if (!m) { res.writeHead(404); return res.end(); }
   const t = topics.get(m[1]) || { msgs: [], subs: new Set() }; topics.set(m[1], t);
   if (req.method === 'POST') {
@@ -31,7 +42,7 @@ const call = (port, method, p, body, headers) => new Promise((resolve, reject) =
   await new Promise(r => mock.listen(0, '127.0.0.1', r)); const relay = 'http://127.0.0.1:' + mock.address().port;
   process.env.DANI_RELAY = relay;
   const PORT = 17990, DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'dani-relay-'));
-  const srv = spawn(process.execPath, [path.join(__dirname, 'pairing-server.js')], { env: { ...process.env, PORT, DANI_DATA: DATA, DANI_RELAY: relay }, stdio: ['ignore', 'pipe', 'inherit'] });
+  const srv = spawn(process.execPath, [path.join(__dirname, 'pairing-server.js')], { env: { ...process.env, PORT, DANI_DATA: DATA, DANI_RELAY: relay, DANI_RECEIVE_HOME: path.join(DATA, 'home') }, stdio: ['ignore', 'pipe', 'inherit'] });
   await sleep(1200);
   const phone = require('../Mobile-App/app/src/main/assets/relay-client.js');
   try {
@@ -61,6 +72,28 @@ const call = (port, method, p, body, headers) => new Promise((resolve, reject) =
     const cst = (await call(PORT, 'GET', '/api/pair/status/' + start.pairId, null, { 'x-pair-secret': start.secret })).json; assert(cst.token);
     await call(PORT, 'POST', '/api/notify', { title: 'Hej', body: 'from computer' }, { authorization: 'Bearer ' + cst.token });
     const note = await Promise.race([got, sleep(8000).then(() => null)]); assert(note && note.title === 'Hej'); console.log('push received:', note.title);
+
+    // 6b. remote control + files through the relay
+    const A = { authorization: 'Bearer ' + st.token }, C = { authorization: 'Bearer ' + cst.token };
+    await s.call('POST', '/api/remote/command', { type: 'lock' }, A);
+    await s.call('POST', '/api/remote/command', { type: 'theme', accent: 2, wall: 'night' }, A);
+    await s.call('POST', '/api/remote/command', { type: 'notify', title: 'Hi', body: 'from phone' }, A);
+    await assert.rejects(s.call('POST', '/api/remote/command', { type: 'theme', wall: '../../etc' }, A), /bad_wall/);
+    await assert.rejects(s.call('POST', '/api/remote/command', { type: 'rm-rf' }, A), /unknown_command/);
+    await assert.rejects(s.call('GET', '/api/remote/commands', null, A), e => e.status === 403);          // computer-only endpoints are not tunnelled
+    const cl = (await call(PORT, 'GET', '/api/remote/commands', null, C)).json.commands; assert.deepStrictEqual(cl.map(c => c.type), ['lock', 'theme', 'notify']); assert.strictEqual(cl[1].accent, 2);
+    assert.strictEqual((await call(PORT, 'GET', '/api/remote/commands', null, C)).json.commands.length, 0);
+    const payload = Buffer.from('hello from the phone ' + 'x'.repeat(50)); const blob = await s.putFile(new Uint8Array(payload));
+    const up = await s.call('POST', '/api/remote/upload', { name: '../../evil.txt', kind: 'file', blob }, A); assert(/^\/Downloads\/DANI-Phone\/evil\.txt$/.test(up.path), up.path);
+    assert.strictEqual(fs.readFileSync(path.join(DATA, 'home', up.path)).toString(), payload.toString()); console.log('file phone->computer ok:', up.path);
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    const wb = await s.putFile(new Uint8Array(png)); const wr = await s.call('POST', '/api/remote/upload', { name: 'bg.png', kind: 'wallpaper', blob: wb }, A); assert.strictEqual(wr.path, '/Pictures/DANI-Phone/bg.png');
+    await assert.rejects(s.call('POST', '/api/remote/upload', { name: 'x.exe', kind: 'wallpaper', blob: await s.putFile(new Uint8Array(png)) }, A), /not_an_image/);
+    await assert.rejects(s.call('POST', '/api/remote/upload', { name: 'x', kind: 'file', blob: { url: 'http://evil.example/x', nonce: blob.nonce } }, A), /blob_url_not_allowed/);
+    const rc = (await call(PORT, 'GET', '/api/remote/commands', null, C)).json.commands; assert(rc.some(c => c.type === 'received' && c.kind === 'wallpaper'));
+    const gotFile = new Promise(r => s.onPush(n => n.file && r(n)));
+    const big = require('crypto').randomBytes(300000); await new Promise((resolve, reject) => { const r = http.request({ host: '127.0.0.1', port: PORT, method: 'POST', path: '/api/remote/send?name=report.bin', headers: { ...C, 'content-length': big.length } }, x => { x.resume(); x.on('end', () => x.statusCode === 201 ? resolve() : reject(new Error('send ' + x.statusCode))); }); r.on('error', reject); r.end(big); });
+    const fn = await Promise.race([gotFile, sleep(8000).then(() => null)]); assert(fn && fn.file.name === 'report.bin'); const back = Buffer.from(await s.getFile(fn.file)); assert(back.equals(big)); console.log('file computer->phone ok (300 KB, encrypted)');
 
     // 7. the link survives a restart of the bridge (saved session)
     const saved = JSON.parse(fs.readFileSync(path.join(DATA, 'relay-sessions.json'), 'utf8')); assert.strictEqual(saved.length, 1);

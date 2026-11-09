@@ -42,13 +42,25 @@ nav button{margin:0;padding:10px;font-size:13px}
     <p class="err" id="perr"></p>
   </div>
 
+  <div class="card" id="remote" style="display:none"><b>שלט רחוק</b>
+    <button id="rLock">🔒 נעל את המחשב</button>
+    <button class="g" id="rMsg">שלח הודעה למחשב</button>
+    <button class="g" id="rFile">שלח קובץ למחשב</button>
+    <button class="g" id="rWall">שלח תמונה כרקע במחשב</button>
+    <input type="file" id="fFile" style="display:none"><input type="file" id="fWall" accept="image/*" style="display:none">
+    <p class="hint" style="margin:12px 0 4px">ערכת עיצוב במחשב</p>
+    <div id="accs" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+    <div id="walls" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+    <p class="err" id="rerr" style="margin:8px 0 0"></p>
+  </div>
+
   <div class="card"><b>הודעות מהמחשב</b><div id="notes" style="margin-top:8px;font-size:14px">אין הודעות.</div></div>
   <nav><button class="g" id="toSet">הגדרות</button></nav>
 </section>
 
 <section id="settings" class="scr">
   <h2>הגדרות</h2>
-  <div class="card">מכשיר: <b id="dev"></b><br>מחובר אל: <b id="linked">—</b><br>גרסה: 0.1.18</div>
+  <div class="card">מכשיר: <b id="dev"></b><br>מחובר אל: <b id="linked">—</b><br>גרסה: 0.1.22</div>
   <div class="card"><b>כתובת המחשב (ידנית)</b><p class="hint">בדרך כלל לא נדרש — האפליקציה מחפשת את המחשב לבד. אם לא מצאה, הזן את הכתובת שמוצגת במחשב, למשל 192.168.1.10:7799</p><input id="srv2" placeholder="192.168.1.10:7799"></div>
   <button id="save">שמור</button><button class="g" id="unlink">נתק מהמחשב</button><button class="g" id="back">חזרה</button>
 </section>
@@ -124,16 +136,49 @@ async function claim(){
 function resetPairUi(keepMsg){$('#confirm').style.display='none';$('#claim').style.display='';$('#claim').disabled=false;if(!keepMsg)$('#perr').textContent='';$('#code').value=''}
 
 async function refresh(){
-  if(!tok()){$('#dot').classList.remove('on');$('#state').textContent='לא מחובר למחשב';$('#pairbox').style.display='block';return}
+  if(!tok()){$('#remote').style.display='none';$('#dot').classList.remove('on');$('#state').textContent='לא מחובר למחשב';$('#pairbox').style.display='block';return}
   try{const s=await raw('/api/device/status',{token:tok()});
-    $('#dot').classList.add('on');$('#state').textContent=RS?'מחובר ל-DANI OS (דרך האינטרנט)':'מחובר ל-DANI OS';$('#devs').textContent=S.get('computer');$('#pairbox').style.display='none';
+    $('#dot').classList.add('on');$('#state').textContent=RS?'מחובר ל-DANI OS (דרך האינטרנט)':'מחובר ל-DANI OS';$('#devs').textContent=S.get('computer');$('#pairbox').style.display='none';$('#remote').style.display='block';
   }catch(e){if(e.status===401){S.del('token');refresh()}else{$('#state').textContent='המחשב לא זמין כרגע'}}
 }
 function addNote(n){
   const d=document.createElement('div');d.style.cssText='border-top:1px solid #eee;padding:6px 0';d.innerHTML='<b></b><br><span></span>';
   d.firstChild.textContent=n.title;d.lastChild.textContent=n.body;const box=$('#notes');if(box.textContent==='אין הודעות.')box.textContent='';box.prepend(d);
+  if(n.file||n.fileId){const b=document.createElement('button');b.className='g';b.textContent='שמור בטלפון ('+Math.round((n.fileSize||n.file.size||0)/1024)+' KB)';b.onclick=async()=>{b.disabled=true;b.textContent='מוריד…';try{await receiveFile(n);b.textContent='נשמר בהורדות/DANI-OS'}catch(e){b.disabled=false;b.textContent='נכשל, נסה שוב'}};d.appendChild(b)}
   window.Android&&Android.notify(n.title,n.body);
 }
+/* ---------- remote control + files ---------- */
+const MAXF=12*1024*1024;
+const b64of=u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)};
+const rerr=t=>{$('#rerr').textContent=t||''};
+async function cmd(o){try{await raw('/api/remote/command',{method:'POST',body:o,token:tok()});rerr('נשלח למחשב ✓')}catch(e){rerr('לא נשלח: '+(e.message==='relay_timeout'?'המחשב לא עונה':e.message))}}
+async function upload(file,kind){
+  if(!file)return;if(file.size>(RS?MAXF:25*1024*1024)){rerr('הקובץ גדול מדי (עד '+(RS?'12':'25')+' MB)');return}
+  rerr('שולח…');
+  try{
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    if(RS){const blob=await RS.putFile(bytes);await raw('/api/remote/upload',{method:'POST',body:{name:file.name,kind,blob},token:tok()})}
+    else{const r=await fetch(base()+'/api/remote/upload?kind='+kind+'&name='+encodeURIComponent(file.name),{method:'POST',headers:{authorization:'Bearer '+tok(),'content-type':'application/octet-stream'},body:bytes});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||r.status)}
+    rerr(kind==='wallpaper'?'הרקע נשלח ומוחל במחשב ✓':'הקובץ נשלח ✓');
+  }catch(e){rerr('השליחה נכשלה: '+e.message)}
+}
+async function receiveFile(n){
+  let bytes;
+  if(n.file&&RS)bytes=await RS.getFile(n.file);
+  else{const r=await fetch(base()+'/api/remote/outbox/'+n.fileId,{headers:{authorization:'Bearer '+tok()}});if(!r.ok)throw new Error('http_'+r.status);bytes=new Uint8Array(await r.arrayBuffer())}
+  const name=(n.file&&n.file.name)||n.fileName||'file';
+  if(window.Android&&Android.saveFile){if(!Android.saveFile(name,b64of(bytes)))throw new Error('save_failed')}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes]));a.download=name;a.click()}
+}
+const ACC=['#e11d2e','#2563eb','#16a34a','#9333ea','#ea580c','#0f172a'],WALLS=[['red','linear-gradient(135deg,#ffc7cd,#e11d2e)'],['sky','linear-gradient(135deg,#8cc4ff,#3a6fd8)'],['sunset','linear-gradient(135deg,#ff9a8b,#7b3fa0)'],['forest','linear-gradient(135deg,#79c58b,#1c5d46)'],['night','linear-gradient(135deg,#3b3f87,#0b0d1f)'],['graphite','linear-gradient(135deg,#b9bcc4,#575a63)']];
+$('#accs').innerHTML=ACC.map((c,i)=>`<i data-a="${i}" style="width:34px;height:34px;border-radius:50%;background:${c};display:block"></i>`).join('');
+$('#walls').innerHTML=WALLS.map(w=>`<i data-w="${w[0]}" style="width:52px;height:38px;border-radius:8px;background:${w[1]};display:block"></i>`).join('');
+$('#accs').onclick=e=>{if(e.target.dataset.a!=null)cmd({type:'theme',accent:+e.target.dataset.a})};
+$('#walls').onclick=e=>{if(e.target.dataset.w)cmd({type:'theme',wall:e.target.dataset.w})};
+$('#rLock').onclick=()=>cmd({type:'lock'});
+$('#rMsg').onclick=()=>{const t=prompt('ההודעה שתופיע במחשב:');if(t)cmd({type:'notify',title:'מהטלפון',body:t})};
+$('#rFile').onclick=()=>$('#fFile').click();$('#rWall').onclick=()=>$('#fWall').click();
+$('#fFile').onchange=e=>{upload(e.target.files[0],'file');e.target.value=''};$('#fWall').onchange=e=>{upload(e.target.files[0],'wallpaper');e.target.value=''};
 async function pullNotes(){
   if(!tok())return;
   try{const r=await raw('/api/notifications?since='+lastNote,{token:tok()});

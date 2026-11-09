@@ -74,6 +74,19 @@
         if (r.status >= 400) { const e = new Error(j.error || ('http_' + r.status)); e.status = r.status; throw e; }
         return j;
       },
+      // encrypted file attachment (ntfy PUT). Layout matches Shared/relay-bridge.js: 4-byte length + data, padded to >= 4.2 KB, AES-GCM, AAD "file"
+      async putFile(bytes) {
+        const n = rand(12); const plain = new Uint8Array(Math.max(4200, 4 + bytes.length)); new DataView(plain.buffer).setUint32(0, bytes.length); plain.set(bytes, 4);
+        const ct = new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv: n, additionalData: enc.encode('file') }, key, plain));
+        const r = await fetch(relay + '/' + topic, { method: 'PUT', body: ct, headers: { Filename: 'dani.bin' } }); const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.attachment || !j.attachment.url) throw new Error('blob_upload_failed'); return { url: j.attachment.url, nonce: b64(n) };
+      },
+      async getFile(f) {
+        if (!String(f.url).startsWith(relay + '/')) throw new Error('blob_url_not_allowed');
+        const r = await fetch(f.url); if (!r.ok) throw new Error('blob_download_failed');
+        const pt = new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(f.nonce), additionalData: enc.encode('file') }, key, await r.arrayBuffer()));
+        return pt.subarray(4, 4 + new DataView(pt.buffer, pt.byteOffset).getUint32(0));
+      },
       export() { return { relay, topic, key: b64(keyBytes) }; },
       close() { stop(); },
     };

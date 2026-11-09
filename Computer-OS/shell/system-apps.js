@@ -69,7 +69,7 @@ window.DaniSystemApps = function (APPS, ICONS) {
       try {
         const r = await ag('/api/fs/list?path=' + encodeURIComponent(p)); cwd = r.path;
         tl.innerHTML = `<button class="b s" data-a="up">⬆</button><span class="path">${E(cwd)}</span><button class="b s" data-a="mk">תיקייה חדשה</button><button class="b s" data-a="new">קובץ טקסט חדש</button>`;
-        ls.innerHTML = r.items.map(it => `<div class="row" data-n="${E(it.name)}" data-d="${it.dir ? 1 : ''}">${fico(KIND[ext(it.name)], it.dir)}<span class="nm">${E(it.name)}</span><small>${it.dir ? '' : size(it.size)}</small><small>${new Date(it.mtime).toLocaleDateString('he-IL')}</small><span class="ac"><button data-a="rn">שנה שם</button><button data-a="rm">למחזור</button></span></div>`).join('') || '<div class="pad"><small>התיקייה ריקה</small></div>';
+        ls.innerHTML = r.items.map(it => `<div class="row" data-n="${E(it.name)}" data-d="${it.dir ? 1 : ''}">${fico(KIND[ext(it.name)], it.dir)}<span class="nm">${E(it.name)}</span><small>${it.dir ? '' : size(it.size)}</small><small>${new Date(it.mtime).toLocaleDateString('he-IL')}</small><span class="ac">${it.dir ? '' : '<button data-a="ph">לטלפון</button>'}<button data-a="rn">שנה שם</button><button data-a="rm">למחזור</button></span></div>`).join('') || '<div class="pad"><small>התיקייה ריקה</small></div>';
       } catch (e) { ls.innerHTML = `<div class="pad">שירות הקבצים לא זמין (${E(e.message)}).</div>`; }
     }
     const join = n => (cwd === '/' ? '' : cwd) + '/' + n;
@@ -83,6 +83,16 @@ window.DaniSystemApps = function (APPS, ICONS) {
       const row = e.target.closest('.row'); if (!row) return; const n = row.dataset.n, a = e.target.dataset.a;
       if (trash) {
         if (a === 'rs') { await ag('/api/fs/trash/restore', { id: row.dataset.id }).catch(x => toast('נכשל')); toast('שוחזר'); showTrash(); }
+        return;
+      }
+      if (a === 'ph') {
+        const l = store.get('phoneLink', null); if (!l) return toast('הטלפון לא מחובר – פתח "חיבור טלפון"');
+        try {
+          const blob = await fetch(AGENT + '/api/fs/raw?path=' + encodeURIComponent(join(n))).then(r => { if (!r.ok) throw new Error('read'); return r.blob(); });
+          if (blob.size > 12 * 1024 * 1024) return toast('הקובץ גדול מדי לשליחה (עד 12 MB)');
+          const r = await fetch(PAIR + '/api/remote/send?name=' + encodeURIComponent(n), { method: 'POST', headers: { authorization: 'Bearer ' + l.token, 'content-type': 'application/octet-stream' }, body: blob });
+          toast(r.ok ? 'נשלח לטלפון: ' + n : 'השליחה נכשלה');
+        } catch { toast('השליחה נכשלה'); }
         return;
       }
       if (a === 'rm') { await ag('/api/fs/trash', { path: join(n) }).catch(x => toast('נכשל: ' + x.message)); toast('הועבר לפח המחזור'); return go(cwd); }

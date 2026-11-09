@@ -19,6 +19,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
+const { execFileSync } = require('child_process');
 let bridge = null;                                // internet relay (code-only pairing without shared Wi-Fi); optional
 try { if (process.env.DANI_RELAY_OFF !== '1') bridge = require('./relay-bridge'); } catch (e) { console.error('relay disabled:', e.message); }
 
@@ -70,7 +72,43 @@ function body(req) {
     req.on('end', () => { try { res(d ? JSON.parse(d) : {}); } catch { rej(new Error('bad json')); } });
   });
 }
-const send = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type,x-pair-secret', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(obj)); };
+// ---------- remote control + file transfer (phone <-> computer) ----------
+const MAX_FILE = 25 * 1024 * 1024;
+const cmds = new Map();                           // linkId -> commands waiting for the computer's shell (lock, notify, theme, received…)
+const outbox = new Map();                         // linkId -> [{id,name,size,ts,file}] files the computer offered to the phone (LAN download)
+const THEME_WALLS = ['red', 'sky', 'sunset', 'forest', 'night', 'graphite'];
+function rawBody(req, max) {
+  return new Promise((res, rej) => {
+    const parts = []; let n = 0;
+    req.on('data', c => { n += c.length; if (n > max) { rej(new Error('too_big')); req.destroy(); } else parts.push(c); });
+    req.on('end', () => res(Buffer.concat(parts))); req.on('error', rej);
+  });
+}
+function desktopUser() {                          // the person who owns the desktop session: received files go into THEIR folders
+  if (process.env.DANI_RECEIVE_HOME) return { home: process.env.DANI_RECEIVE_HOME, uid: null, gid: null };
+  try {
+    const uid = fs.readdirSync('/run/user').find(u => /^\d+$/.test(u) && +u >= 1000);
+    if (uid) { const l = execFileSync('getent', ['passwd', uid]).toString().split(':'); return { home: l[5], uid: +l[2], gid: +l[3] }; }
+  } catch {}
+  try { const l = fs.readFileSync('/etc/passwd', 'utf8').split('\n').map(x => x.split(':')).find(a => +a[2] >= 1000 && +a[2] < 60000 && !/nologin|false/.test(a[6] || '')); if (l) return { home: l[5], uid: +l[2], gid: +l[3] }; } catch {}
+  return { home: os.homedir(), uid: null, gid: null };
+}
+function safeName(n) { n = path.basename(String(n || 'file').replace(/\\/g, '/')).replace(/[\u0000-\u001f<>:"|?*]/g, '_').replace(/^\.+/, '').slice(0, 100); return n || 'file'; }
+function saveReceived(buf, name, kind) {
+  const u = desktopUser(); name = safeName(name);
+  if (kind === 'wallpaper' && !/\.(png|jpe?g|webp|gif)$/i.test(name)) throw new Error('not_an_image');
+  const sub = kind === 'wallpaper' ? 'Pictures' : 'Downloads'; const dir = path.join(u.home, sub, 'DANI-Phone');
+  fs.mkdirSync(dir, { recursive: true });
+  let target = path.join(dir, name), i = 1; const ext = path.extname(name), stem = name.slice(0, name.length - ext.length);
+  while (fs.existsSync(target)) target = path.join(dir, `${stem} (${i++})${ext}`);
+  fs.writeFileSync(target, buf, { mode: 0o644 });
+  if (u.uid != null && process.getuid && process.getuid() === 0) { try { fs.chownSync(dir, u.uid, u.gid); fs.chownSync(path.dirname(dir), u.uid, u.gid); fs.chownSync(target, u.uid, u.gid); } catch {} }
+  return '/' + sub + '/DANI-Phone/' + path.basename(target);       // path relative to the desktop user's home (what the shell/agent use)
+}
+function queueCmd(linkId, c) { const a = cmds.get(linkId) || []; a.push({ id: crypto.randomUUID(), ts: Date.now(), ...c }); cmds.set(linkId, a.slice(-50)); }
+const OUTBOX_DIR = () => path.join(DATA, 'outbox');
+
+const send = (res, code, obj) => { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type,x-pair-secret,filename', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(obj)); };
 
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, {});
@@ -136,7 +174,7 @@ const server = http.createServer(async (req, res) => {
     // --- after pairing: token based ---
     const a = bearer(req); if (!a) return send(res, 401, { error: 'unauthorized' });
     if (req.method === 'GET' && p === '/api/device/status') return send(res, 200, { paired: true, name: links[a.id].name, role: a.role });
-    if (req.method === 'POST' && p === '/api/device/unlink') { delete links[a.id]; inbox.delete(a.id); saveLinks(); if (bridge) bridge.dropLink(a.id); return send(res, 200, { ok: true }); }
+    if (req.method === 'POST' && p === '/api/device/unlink') { delete links[a.id]; inbox.delete(a.id); cmds.delete(a.id); outbox.delete(a.id); saveLinks(); if (bridge) bridge.dropLink(a.id); return send(res, 200, { ok: true }); }
     if (req.method === 'POST' && p === '/api/notify') {
       if (a.role !== 'computer') return send(res, 403, { error: 'computer_only' });
       const { title, body: b } = await body(req); const arr = inbox.get(a.id) || [];
@@ -147,6 +185,56 @@ const server = http.createServer(async (req, res) => {
       if (a.role !== 'phone') return send(res, 403, { error: 'phone_only' });
       const since = +url.searchParams.get('since') || 0;
       return send(res, 200, { items: (inbox.get(a.id) || []).filter(n => n.ts > since) });
+    }
+
+    // ---------- remote control ----------
+    if (req.method === 'POST' && p === '/api/remote/command') {                      // phone -> computer
+      if (a.role !== 'phone') return send(res, 403, { error: 'phone_only' });
+      if (limited('cmd:' + a.id, 30, 60_000)) return send(res, 429, { error: 'rate_limited' });
+      const c = await body(req); const t = String(c.type || '');
+      if (t === 'lock') queueCmd(a.id, { type: 'lock' });
+      else if (t === 'notify') queueCmd(a.id, { type: 'notify', title: String(c.title || 'הודעה מהטלפון').slice(0, 80), body: String(c.body || '').slice(0, 400) });
+      else if (t === 'theme') {
+        const th = { type: 'theme' };
+        if (c.accent != null) { const n = +c.accent; if (!Number.isInteger(n) || n < 0 || n > 5) return send(res, 400, { error: 'bad_accent' }); th.accent = n; }
+        if (c.wall != null) { if (!THEME_WALLS.includes(c.wall)) return send(res, 400, { error: 'bad_wall' }); th.wall = c.wall; }
+        if (th.accent == null && th.wall == null) return send(res, 400, { error: 'empty_theme' });
+        queueCmd(a.id, th);
+      } else return send(res, 400, { error: 'unknown_command' });
+      return send(res, 200, { ok: true });
+    }
+    if (req.method === 'GET' && p === '/api/remote/commands') {                      // the computer's shell collects them (never reachable through the relay)
+      if (a.role !== 'computer') return send(res, 403, { error: 'computer_only' });
+      const list = cmds.get(a.id) || []; cmds.set(a.id, []); return send(res, 200, { commands: list });
+    }
+    if (req.method === 'POST' && p === '/api/remote/upload') {                       // phone -> computer file (LAN, raw body)
+      if (a.role !== 'phone') return send(res, 403, { error: 'phone_only' });
+      if (limited('up:' + a.id, 20, 60_000)) return send(res, 429, { error: 'rate_limited' });
+      const kind = url.searchParams.get('kind') === 'wallpaper' ? 'wallpaper' : 'file', name = url.searchParams.get('name') || 'file';
+      const buf = await rawBody(req, MAX_FILE); if (!buf.length) return send(res, 400, { error: 'empty' });
+      const saved = saveReceived(buf, name, kind); queueCmd(a.id, { type: 'received', kind, path: saved, name: path.basename(saved), size: buf.length });
+      return send(res, 201, { ok: true, path: saved });
+    }
+    // ---------- computer -> phone files ----------
+    if (req.method === 'POST' && p === '/api/remote/send') {
+      if (a.role !== 'computer') return send(res, 403, { error: 'computer_only' });
+      const name = safeName(url.searchParams.get('name')); const buf = await rawBody(req, MAX_FILE); if (!buf.length) return send(res, 400, { error: 'empty' });
+      const id = crypto.randomBytes(8).toString('hex'); fs.mkdirSync(path.join(OUTBOX_DIR(), a.id), { recursive: true, mode: 0o700 });
+      const file = path.join(OUTBOX_DIR(), a.id, id); fs.writeFileSync(file, buf, { mode: 0o600 });
+      const arr = outbox.get(a.id) || []; arr.push({ id, name, size: buf.length, ts: Date.now(), file }); while (arr.length > 20) { const o = arr.shift(); try { fs.unlinkSync(o.file); } catch {} } outbox.set(a.id, arr);
+      const note = { id: crypto.randomUUID(), title: 'קובץ מהמחשב', body: name, ts: Date.now(), fileId: id, fileName: name, fileSize: buf.length };
+      const ib = inbox.get(a.id) || []; ib.push(note); inbox.set(a.id, ib.slice(-100));
+      if (bridge && bridge.pushFile) bridge.pushFile(a.id, buf, name, note);
+      return send(res, 201, { ok: true, id });
+    }
+    if (req.method === 'GET' && p === '/api/remote/outbox') {
+      if (a.role !== 'phone') return send(res, 403, { error: 'phone_only' });
+      return send(res, 200, { items: (outbox.get(a.id) || []).map(({ id, name, size, ts }) => ({ id, name, size, ts })) });
+    }
+    if (req.method === 'GET' && (m = /^\/api\/remote\/outbox\/(\w+)$/.exec(p))) {
+      if (a.role !== 'phone') return send(res, 403, { error: 'phone_only' });
+      const o = (outbox.get(a.id) || []).find(x => x.id === m[1]); if (!o) return send(res, 404, { error: 'not_found' });
+      res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': o.size, 'access-control-allow-origin': '*', 'x-file-name': encodeURIComponent(o.name) }); return res.end(fs.readFileSync(o.file));
     }
     return send(res, 404, { error: 'not_found' });
   } catch (e) { return send(res, 400, { error: e.message }); }
