@@ -1,65 +1,12 @@
 # DANI OS
 
-מערכת הפעלה בעיצוב אדום-לבן, המבוססת על Debian 13, עם ממשק שולחן עבודה בסגנון macOS ואפליקציית Android.
+מערכת הפעלה על בסיס Debian 13 עם מעטפת בסגנון macOS (אדום-לבן) ואפליקציית Android מצורפת.
 
-## הורדה
+![DANI OS](Documentation/screenshots/desktop-store.png)
 
-- **ISO למחשב:** [הורדת הגרסה האחרונה](https://github.com/Daniel2025992/dani-os/releases)
-- **APK לטלפון Android:** נמצא באותו עמוד Releases, לאחר שבניית הגרסה הסתיימה בהצלחה.
-- [בדיקת מצב הבנייה ב-GitHub Actions](https://github.com/Daniel2025992/dani-os/actions)
+| ISO – מסך פתיחה | ISO – מתקין | טלפון – חיבור עם קוד |
+|---|---|---|
+| ![](Documentation/screenshots/boot-splash-preview.png) | ![](Documentation/screenshots/installer-step1.png) | <img src="Documentation/screenshots/phone-2-pairing.png" width="160"> |
 
-## התקנת DANI OS ב-VMware
-
-1. הורידו את קובץ ה-ISO מעמוד [Releases](https://github.com/Daniel2025992/dani-os/releases).
-2. פתחו VMware וצרו מכונה וירטואלית חדשה.
-3. בחרו מערכת Linux מסוג Debian 64-bit.
-4. הקצו לפחות 4GB RAM, אם אפשר.
-5. בחרו להשתמש בקובץ ISO קיים והצביעו על קובץ DANI OS שהורדתם.
-6. הפעילו את המכונה ופעלו לפי התפריט וההוראות שעל המסך.
-
-אם מופיע מסך שחור או הודעת שגיאה, צלמו את המסך כדי שאפשר יהיה לאבחן את הבעיה. אין לבחור דיסק פיזי של המחשב לצורך בדיקה.
-
-## התקנה במחשב באמצעות USB
-
-1. הורידו את קובץ ה-ISO מעמוד Releases.
-2. פתחו את Rufus או balenaEtcher ובחרו את קובץ ה-ISO.
-3. בחרו כונן USB וכתבו אליו את התמונה.
-4. אתחלו את המחשב מכונן ה-USB ופעלו לפי הוראות המתקין.
-
-**אזהרה:** כתיבת ISO לכונן USB מוחקת את תוכן כונן ה-USB. התקנת מערכת הפעלה על דיסק מחשב עלולה למחוק את כל המידע בדיסק שנבחר. גבו קבצים ובדקו היטב את בחירת הדיסק לפני אישור התקנה.
-
-## התקנת אפליקציית Android (APK)
-
-1. פתחו בטלפון את עמוד [Releases](https://github.com/Daniel2025992/dani-os/releases).
-2. הורידו את קובץ ה-APK של הגרסה האחרונה.
-3. פתחו את הקובץ ואשרו התקנה ממקור זה, אם Android מבקש זאת.
-4. לאחר סיום ההתקנה, פתחו את האפליקציה.
-
-התקינו APK רק אם הורדתם אותו מהמאגר הרשמי ואתם סומכים על מקורו.
-
-## דרישות מומלצות לבדיקה
-
-- מחשב בעל מעבד 64-bit.
-- לפחות 4GB RAM למכונה הווירטואלית (8GB ומעלה מומלץ אם זמין).
-- שטח אחסון פנוי למכונה הווירטואלית.
-- VMware או VirtualBox.
-- לטלפון: מכשיר Android תואם.
-
-## מדריך מפורט ותיעוד
-
-- [מדריך מפורט, תכונות, אבטחה והוראות בנייה](Documentation/README.md)
-- [קוד המקור של הפרויקט](https://github.com/Daniel2025992/dani-os)
-- [גרסאות והורדות](https://github.com/Daniel2025992/dani-os/releases)
-
----
-
-## פרטי הפרויקט
-
-**שם:** DANI OS  
-**גרסה:** 0.1.18  
-**מספר Build אחרון מתועד:** Build 66 
-**מערכת בסיס:** Debian 13  
-**קבצים להפצה:** ISO למחשב ו-APK ל-Android
-
-*הערה: מספר הגרסה ומספר ה-Build מתארים את קוד הפרויקט. קובצי התקנה חדשים יהיו זמינים בעמוד Releases רק לאחר שבניית GitHub Actions תסתיים בהצלחה ויפורסמו שם.*
-
+- **הורדה:** [Releases](../../releases) – `dani-os-build-N.iso` (מחשב) ו-`dani-os-build-N.apk` (טלפון).
+- **תיעוד מלא, איך מתקינים וכל התמונות:** [Documentation/README.md](Documentation/README.md)
