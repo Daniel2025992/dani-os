@@ -43,6 +43,12 @@ app.whenReady().then(async () => {
   // target=_blank / window.open inside the browser -> a new DANI browser tab
   app.on('web-contents-created', (e, wc) => {
     if (wc.getType() !== 'webview') return;
+    wc.on('context-menu', (ev, p) => {            // right-click inside a web page -> DANI's own menu
+      if (!mainWin) return;
+      let back = false, fwd = false; try { back = wc.navigationHistory ? wc.navigationHistory.canGoBack() : wc.canGoBack(); fwd = wc.navigationHistory ? wc.navigationHistory.canGoForward() : wc.canGoForward(); } catch (e) {}
+      const d = { id: wc.id, x: p.x, y: p.y, link: p.linkURL || '', src: p.srcURL || '', media: p.mediaType, sel: p.selectionText || '', edit: !!p.isEditable, page: p.pageURL || wc.getURL(), title: wc.getTitle(), back, fwd };
+      mainWin.webContents.executeJavaScript('window.__webMenu&&window.__webMenu(' + JSON.stringify(d) + ')').catch(() => {});
+    });
     wc.setWindowOpenHandler(({ url }) => {
       if (/^https?:/i.test(url) && mainWin) mainWin.webContents.executeJavaScript('window.__openTab&&window.__openTab(' + JSON.stringify(url) + ')').catch(() => {});
       return { action: 'deny' };

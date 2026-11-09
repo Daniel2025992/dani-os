@@ -94,7 +94,7 @@ html.dark .win,html.dark .boxm,html.dark .pop{filter:invert(.92) hue-rotate(180d
       if (e.target.dataset.disc !== undefined) { await ag('/api/net/wifi/disconnect', {}).catch(() => { }); return draw(false); }
       const row = e.target.closest('[data-ssid]'); if (!row || e.target.closest('button')) return;
       const ssid = row.dataset.ssid; let pw = '';
-      if (row.dataset.sec === '1') { pw = prompt('סיסמת Wi-Fi עבור ' + ssid + ':'); if (pw === null) return; }
+      if (row.dataset.sec === '1') { pw = await DaniAsk('סיסמת Wi-Fi עבור ' + ssid, '', { password: true }); if (pw === null) return; }
       msg('מתחבר…'); const r = await ag('/api/net/wifi/connect', { ssid, password: pw }).catch(() => ({ ok: false, msg: 'שגיאה' }));
       msg(r.msg || ''); if (r.ok) draw(false);
     };

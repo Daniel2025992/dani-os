@@ -107,7 +107,7 @@ window.DaniMediaApps = function (APPS, ICONS) {
       if (!on.includes(id)) { if (el) el.remove(); clearInterval(timers[id]); continue; }
       if (el) continue;
       const W = WIDGETS[id]; el = document.createElement('div'); el.className = 'wg'; el.id = 'wg-' + id; el.style.width = W.w + 'px';
-      const slot = Object.keys(WIDGETS).indexOf(id), p = pos[id] || { x: innerWidth - W.w - 60, y: 46 + slot * 150 }; el.style.left = Math.min(p.x, innerWidth - 60) + 'px'; el.style.top = Math.min(p.y, innerHeight - 100) + 'px';
+      const slot = Object.keys(WIDGETS).indexOf(id), p = pos[id] || { x: innerWidth - W.w - 150, y: 46 + slot * 150 }; el.style.left = Math.min(p.x, innerWidth - 60) + 'px'; el.style.top = Math.min(p.y, innerHeight - 100) + 'px';
       layer.appendChild(el); W.draw(el); if (W.tick) timers[id] = setInterval(() => W.draw(el), W.tick);
       el.addEventListener('pointerdown', e => { if (e.target.closest('textarea')) return; const sx = e.clientX, sy = e.clientY, l = el.offsetLeft, t = el.offsetTop; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing';
         const mv = ev => { el.style.left = Math.max(0, l + ev.clientX - sx) + 'px'; el.style.top = Math.max(28, t + ev.clientY - sy) + 'px'; };

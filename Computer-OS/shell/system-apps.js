@@ -58,7 +58,7 @@ window.DaniSystemApps = function (APPS, ICONS) {
 
   /* ---------- Files + Trash ---------- */
   function filesApp(root, w) {
-    let cwd = '/', trash = false;
+    let cwd = window.__filesStart || '/', trash = false; window.__filesStart = null;
     root.innerHTML = '<div class="fm"><div class="sb"></div><div class="mn"><div class="tl"></div><div class="ls"></div></div></div>';
     const sb = $('.sb', root), tl = $('.tl', root), ls = $('.ls', root);
     const places = [['/', 'בית'], ['/Desktop', 'שולחן עבודה'], ['/Documents', 'מסמכים'], ['/Downloads', 'הורדות'], ['/Pictures', 'תמונות'], ['/Music', 'מוזיקה'], ['/Videos', 'סרטונים']];
