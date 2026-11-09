@@ -267,6 +267,7 @@ until npm install --omit=dev --no-audit --no-fund electron; do
 done
 # the DANI user is created here (live-config never created "dani", which is why the desktop service failed with 217/USER)
 G=""; for g in audio video render input netdev plugdev sudo; do getent group $g >/dev/null && G="$G,$g"; done
+mkdir -p /etc/skel/Pictures /etc/skel/Videos /etc/skel/Music /etc/skel/Downloads /etc/skel/Documents /etc/skel/Desktop
 useradd -m -u 1500 -s /bin/bash -G "${G#,}" -c DANI dani
 passwd -d dani
 plymouth-set-default-theme dani || echo "DANI: plymouth theme not set"

@@ -28,6 +28,7 @@
     const ac = store.get('accent', 0), a = ACCENTS[ac] || ACCENTS[0];
     document.documentElement.style.setProperty('--red', a[0]); document.documentElement.style.setProperty('--red2', a[1]);
     document.documentElement.style.zoom = String(store.get('uiScale', 1));
+    const mode = store.get('mode', 'light'), h = new Date().getHours(); document.documentElement.classList.toggle('dark', mode === 'dark' || (mode === 'auto' && (h >= 19 || h < 7)));
     const wm = document.getElementById('wm'); if (wm) wm.style.display = store.get('wm', true) ? '' : 'none';
   }
   window.DaniApplyAppearance = applyAppearance;
@@ -35,6 +36,8 @@
   /* ---------- UI helpers ---------- */
   const css = document.createElement('style');
   css.textContent = `
+html.dark .win,html.dark .boxm,html.dark .pop{filter:invert(.92) hue-rotate(180deg)}html.dark .win img,html.dark .win video,html.dark .win canvas,html.dark .win iframe,html.dark .win .walls div,html.dark .win .acc i,html.dark .win .art{filter:invert(1) hue-rotate(180deg)}
+
 .st{display:flex;height:100%;direction:rtl;font-size:13.5px}.st .nav{width:176px;background:#f7f1f2;border-left:1px solid var(--line);padding:10px 6px;overflow:auto;flex:none}
 .st .nav div{padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;gap:9px;align-items:center}.st .nav div:hover{background:#ffe9ec}.st .nav div.on{background:var(--red);color:#fff;font-weight:600}
 .st .nav svg{width:18px;height:18px;flex:none}.st .sp{flex:1;overflow:auto;padding:18px 22px;min-width:0}.st h3{margin:0 0 14px;font-size:18px}
@@ -55,8 +58,11 @@
     ['bt', 'בלוטוס', ic('<path d="M7 7l10 10-5 4V3l5 4L7 17"/>')],
     ['sound', 'צליל', ic('<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>')],
     ['display', 'תצוגה', ic('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>')],
+    ['kits', 'ערכות עיצוב', ic('<circle cx="8" cy="8" r="4"/><circle cx="16" cy="8" r="4"/><circle cx="12" cy="15" r="4"/>')],
     ['wall', 'רקע ועיצוב', ic('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="M21 16l-5-5L5 21"/>')],
     ['lang', 'שפה ומקלדת', ic('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>')],
+    ['widgets', 'ווידג\'טים', ic('<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/>')],
+    ['lock', 'מסך נעילה', ic('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>')],
     ['users', 'משתמשים', ic('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')],
     ['upd', 'עדכונים', ic('<path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/>')],
     ['about', 'אודות', ic('<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>')]
@@ -161,6 +167,35 @@
       else return;
       applyAppearance(); P.wall(pg);
     };
+  };
+
+  const KITS = [
+    { name: 'DANI קלאסי', wall: 'red', accent: 0, mode: 'light' }, { name: 'לילה', wall: 'night', accent: 1, mode: 'dark' }, { name: 'יער', wall: 'forest', accent: 2, mode: 'light' },
+    { name: 'שקיעה', wall: 'sunset', accent: 3, mode: 'light' }, { name: 'שמיים', wall: 'sky', accent: 1, mode: 'light' }, { name: 'גרפיט', wall: 'graphite', accent: 5, mode: 'dark' }
+  ];
+  P.kits = async (pg) => {
+    const mode = store.get('mode', 'light');
+    pg.innerHTML = `<h3>ערכות עיצוב</h3><div class="sc"><div class="row"><div class="g"><b>מצב</b><small>המצב הכהה משנה את צבעי החלונות</small></div><select id="md">${[['light', 'בהיר'], ['dark', 'כהה'], ['auto', 'אוטומטי (כהה בערב)']].map(a => `<option value="${a[0]}" ${a[0] === mode ? 'selected' : ''}>${a[1]}</option>`).join('')}</select></div></div>
+    <div class="sc"><div class="row"><b>ערכות מוכנות</b><small>רקע, צבע ומצב ביחד. אפשר להחליף גם מהטלפון</small></div><div class="walls">${KITS.map((k, i) => { const x = WALLS.find(a => a.id === k.wall); return `<div style="background:${x.css}" data-k="${i}"><span>${k.name}</span></div>`; }).join('')}</div></div>`;
+    $('#md', pg).onchange = e => { store.set('mode', e.target.value); applyAppearance(); };
+    pg.onclick = e => { const d = e.target.closest('[data-k]'); if (!d) return; const k = KITS[+d.dataset.k]; store.set('wall', { kind: 'preset', id: k.wall }); store.set('accent', k.accent); store.set('mode', k.mode); applyAppearance(); P.kits(pg); };
+  };
+
+  P.widgets = async (pg) => {
+    const W = (window.DaniWidgets || { list: {} }).list, on = store.get('widgets', ['clock']);
+    pg.innerHTML = `<h3>ווידג'טים</h3><div class="sc">${Object.entries(W).map(([id, w]) => `<div class="row"><div class="g">${w.name}</div>${sw(on.includes(id), 'w:' + id)}</div>`).join('')}</div><div class="dim">אפשר לגרור כל ווידג'ט על שולחן העבודה.</div>`;
+    pg.onclick = e => { const k = e.target.dataset.sw; if (!k || !k.startsWith('w:')) return; const id = k.slice(2), cur = new Set(store.get('widgets', ['clock'])); cur.has(id) ? cur.delete(id) : cur.add(id); store.set('widgets', [...cur]); e.target.classList.toggle('on', cur.has(id)); DaniWidgets.refresh(); };
+  };
+
+  P.lock = async (pg) => {
+    const c = store.get('lock', { clock: true, msg: '', blur: true }), u = store.get('user', {});
+    pg.innerHTML = `<h3>מסך נעילה</h3><div class="sc"><div class="row"><div class="g">הצג שעה ותאריך</div>${sw(c.clock, 'lc')}</div><div class="row"><div class="g">טשטוש הרקע</div>${sw(c.blur, 'lb')}</div>
+    <div class="row"><div class="g"><b>הודעה במסך הנעילה</b></div><input class="in" id="lm" maxlength="60" value="${E(c.msg)}" placeholder="למשל: המחשב של דניאל"></div>
+    <div class="row"><button class="b" id="lt">נעל עכשיו כדי לראות</button></div><div class="msg" id="lmsg">${u.hash ? '' : 'כדי שהנעילה תעבוד צריך להגדיר סיסמה בהגדרות › משתמשים'}</div></div>`;
+    const save = () => store.set('lock', c);
+    pg.onclick = async e => { const k = e.target.dataset.sw; if (k === 'lc') { c.clock = !c.clock; e.target.classList.toggle('on', c.clock); save(); } if (k === 'lb') { c.blur = !c.blur; e.target.classList.toggle('on', c.blur); save(); }
+      if (e.target.id === 'lt') { if (!u.hash) return; await lockScreen(u); } };
+    $('#lm', pg).oninput = e => { c.msg = e.target.value; save(); };
   };
 
   P.lang = async (pg) => {
