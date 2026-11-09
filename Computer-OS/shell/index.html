@@ -95,6 +95,7 @@ body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
 <div id="desk"></div>
 <div id="dock"></div>
 <script src="system-apps.js"></script>
+<script src="settings-app.js"></script>
 <script>
 "use strict";
 const $=(s,r=document)=>r.querySelector(s);
@@ -106,7 +107,7 @@ const isElectron=!!(window.process&&window.process.versions&&window.process.vers
 
 /* ---------- toast / clock ---------- */
 function toast(msg,ms=4000){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),ms)}
-setInterval(()=>{$('#clock').textContent=new Date().toLocaleString('he-IL',{weekday:'short',hour:'2-digit',minute:'2-digit'})},1000);
+setInterval(()=>{$('#clock').textContent=new Date().toLocaleString('he-IL',{weekday:'short',hour:'2-digit',minute:'2-digit',hour12:!store.get('clk24',true)})},1000);
 
 /* ---------- window manager (pointer events: mouse + touch) ---------- */
 let z=10,wins={};
@@ -349,6 +350,7 @@ const APPS={
   updates:{title:'עדכונים',icon:ICONS.updates,w:520,h:360,render:updatesApp},
   settings:{title:'הגדרות',icon:ICONS.settings,w:520,h:360,render:settingsApp}
 };
+if(window.DaniSettings)DaniSettings(APPS);
 if(window.DaniSystemApps)DaniSystemApps(APPS,ICONS);   // files, trash, task manager, terminal, control + notification center
 /* ---------- user: first-boot Setup Assistant + lock screen ---------- */
 const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a)));
@@ -392,11 +394,14 @@ function closePop(){document.querySelectorAll('.pop').forEach(p=>p.remove())}
 $('#logo').onclick=e=>{
   e.stopPropagation();if($('.pop')){closePop();return}
   const p=document.createElement('div');p.className='pop';p.style.right='auto';p.style.left='8px';
-  p.innerHTML=`<div data-a="about">אודות DANI OS</div><div data-a="settings">הגדרות מערכת…</div><div data-a="store">חנות אפליקציות…</div><hr><div data-a="lock">נעל מסך</div>`;
-  p.onclick=async ev=>{const a=ev.target.dataset.a;closePop();
-    if(a==='about')openApp('about');
-    if(a==='settings'||a==='store')openApp(a);
-    if(a==='lock'){const u=store.get('user');if(u.hash)await lockScreen(u);else toast('לא הוגדרה סיסמה – הגדר בהגדרות')}};
+  p.innerHTML=`<div data-a="about">אודות DANI OS</div><hr><div data-a="settings">הגדרות מערכת…</div><div data-a="wifi">רשת ו-Wi-Fi…</div><div data-a="bt">בלוטוס…</div><div data-a="sound">צליל…</div><div data-a="wall">רקע ועיצוב…</div><hr><div data-a="store">חנות אפליקציות…</div><div data-a="updates">עדכונים…</div><div data-a="files">קבצים</div><hr><div data-a="lock">נעל מסך</div><div data-a="reboot">הפעל מחדש…</div><div data-a="off">כבה…</div>`;
+  p.onclick=async ev=>{const a=ev.target.dataset.a;if(!a)return;closePop();
+    if(['about','store','updates','files'].includes(a))openApp(a);
+    else if(a==='settings')openSettings('wifi');
+    else if(['wifi','bt','sound','wall'].includes(a))openSettings(a);
+    else if(a==='lock'){const u=store.get('user');if(u.hash)await lockScreen(u);else toast('לא הוגדרה סיסמה – הגדר בהגדרות › משתמשים')}
+    else if(a==='reboot'||a==='off'){if(!confirm(a==='off'?'לכבות את המחשב?':'להפעיל מחדש את המחשב?'))return;
+      const r=await fetch(AGENT+'/api/sys/power',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:a==='off'?'poweroff':'reboot'})}).then(x=>x.json()).catch(()=>({ok:false}));toast(r.ok?'מבצע…':(r.msg||'לא זמין'))}};
   document.body.appendChild(p);
 };
 document.addEventListener('click',closePop);

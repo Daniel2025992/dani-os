@@ -179,7 +179,7 @@ window.DaniSystemApps = function (APPS, ICONS) {
   function controlPanel() {
     const p = open = document.createElement('div'); p.className = 'panel'; p.dataset.k = 'c'; const u = store.get('user', {}) || {};
     p.innerHTML = `<h4>מרכז בקרה</h4>
-    <div class="tiles"><div class="tile ${navigator.onLine ? 'on' : ''}" data-t="net">רשת<small>${navigator.onLine ? 'מחובר' : 'לא מחובר'}</small></div><div class="tile ${dnd ? 'on' : ''}" data-t="dnd">נא לא להפריע<small>${dnd ? 'פעיל' : 'כבוי'}</small></div></div>
+    <div class="tiles"><div class="tile ${navigator.onLine ? 'on' : ''}" data-t="net">רשת<small>${navigator.onLine ? 'מחובר' : 'לא מחובר'}</small></div><div class="tile" data-t="bt">בלוטוס<small>הגדרות</small></div><div class="tile ${dnd ? 'on' : ''}" data-t="dnd">נא לא להפריע<small>${dnd ? 'פעיל' : 'כבוי'}</small></div></div>
     <div style="margin-bottom:12px"><small>עוצמת קול</small><input type="range" min="0" max="100" value="50" id="vol"></div>
     <div class="apps">${['files', 'terminal', 'tasks', 'settings', 'phone', 'updates'].map(id => `<div class="di" data-o="${id}" title="${APPS[id].title}">${APPS[id].icon}</div>`).join('')}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b s" data-t="lock">נעל מסך</button><button class="b s" data-t="reboot">הפעל מחדש</button><button class="b" data-t="off">כיבוי</button></div><div id="pmsg" style="margin-top:8px;font-size:12px;color:#b3101f"></div>`;
@@ -190,6 +190,8 @@ window.DaniSystemApps = function (APPS, ICONS) {
     p.onclick = async e => {
       const o = e.target.closest('[data-o]'); if (o) { closePanel(); openApp(o.dataset.o); return; }
       const t = e.target.dataset.t || (e.target.closest('.tile') || {}).dataset?.t; if (!t) return;
+      if (t === 'net') { closePanel(); openSettings('wifi'); return; }
+      if (t === 'bt') { closePanel(); openSettings('bt'); return; }
       if (t === 'dnd') { dnd = !dnd; store.set('dnd', dnd); drawBar(); closePanel(); controlPanel(); }
       if (t === 'lock') { closePanel(); if (u.hash && u.salt) lockScreen(u); else toast('כדי לנעול את המסך הגדר סיסמה בהגדרות'); }
       if (t === 'reboot' || t === 'off') {

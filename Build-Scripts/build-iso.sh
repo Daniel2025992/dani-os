@@ -84,6 +84,7 @@ libpam-systemd dbus seatd fonts-noto-core fonts-noto-ui-core fonts-noto-color-em
 nodejs npm python3 openssl
 grub-efi-amd64 grub-efi-amd64-signed shim-signed grub-pc-bin efibootmgr gdisk dosfstools e2fsprogs squashfs-tools util-linux
 pipewire pipewire-pulse wireplumber plymouth
+bluez rfkill libspa-0.2-bluetooth wlr-randr brightnessctl tzdata
 # Do not install the legacy Broadcom STA firmware installer: it can fail in chroot builds and is not needed for VMware/VirtualBox.
 firmware-b43-installer-
 EOF
@@ -139,6 +140,8 @@ cat > config/includes.chroot/usr/local/bin/dani-session <<'EOF'
 # Starts the DANI desktop. Tries several graphics set-ups; if the desktop window never appears, shows WHY on screen.
 if [ -d /run/live/medium ]; then PAGE=Installer/installer.html; else PAGE=Computer-OS/shell/index.html; fi
 export ELECTRON_OZONE_PLATFORM_HINT=wayland
+# keyboard layouts chosen in Settings (written by the agent to /etc/default/keyboard); cage reads them from the environment
+if [ -r /etc/default/keyboard ]; then . /etc/default/keyboard; [ -n "$XKBLAYOUT" ] && export XKB_DEFAULT_LAYOUT="$XKBLAYOUT" XKB_DEFAULT_OPTIONS="$XKBOPTIONS"; fi
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 ELECTRON=/opt/dani-os/Computer-OS/shell/node_modules/.bin/electron
 LOG=/tmp/dani-session.log
@@ -269,6 +272,7 @@ passwd -d dani
 plymouth-set-default-theme dani || echo "DANI: plymouth theme not set"
 update-initramfs -u -k all
 systemctl enable dani-diag.service dani-shell.service dani-agent.service dani-pairing.service dani-installer-backend.service NetworkManager.service
+systemctl enable bluetooth.service 2>/dev/null || true
 systemctl set-default graphical.target
 systemctl mask getty@tty1.service
 EOF

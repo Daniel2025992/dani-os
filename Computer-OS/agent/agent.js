@@ -48,6 +48,7 @@ http.createServer((req, res) => {
   req.on('end', async () => {
     let b = {}; try { b = d ? JSON.parse(d) : {}; } catch {}
     if (await sysapi.handle(req, res, new URL(req.url, 'http://x'), b, json)) return;
+    if (await require('./settings-api').handle(req, res, new URL(req.url, 'http://x'), b, json)) return;
     if (req.method === 'GET' && req.url === '/api/netinfo') {   // LAN addresses, shown as a manual fallback for phone pairing
       const ips = Object.values(require('os').networkInterfaces()).flat().filter(i => i.family === 'IPv4' && !i.internal).map(i => i.address);
       return json(res, 200, { ips });
