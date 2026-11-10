@@ -78,10 +78,11 @@ const call = (port, method, p, body, headers) => new Promise((resolve, reject) =
     await s.call('POST', '/api/remote/command', { type: 'lock' }, A);
     await s.call('POST', '/api/remote/command', { type: 'theme', accent: 2, wall: 'night' }, A);
     await s.call('POST', '/api/remote/command', { type: 'notify', title: 'Hi', body: 'from phone' }, A);
+    await s.call('POST', '/api/remote/command', { type: 'ring', from: 'Pixel' }, A);
     await assert.rejects(s.call('POST', '/api/remote/command', { type: 'theme', wall: '../../etc' }, A), /bad_wall/);
     await assert.rejects(s.call('POST', '/api/remote/command', { type: 'rm-rf' }, A), /unknown_command/);
     await assert.rejects(s.call('GET', '/api/remote/commands', null, A), e => e.status === 403);          // computer-only endpoints are not tunnelled
-    const cl = (await call(PORT, 'GET', '/api/remote/commands', null, C)).json.commands; assert.deepStrictEqual(cl.map(c => c.type), ['lock', 'theme', 'notify']); assert.strictEqual(cl[1].accent, 2);
+    const cl = (await call(PORT, 'GET', '/api/remote/commands', null, C)).json.commands; assert.deepStrictEqual(cl.map(c => c.type), ['lock', 'theme', 'notify', 'ring']); assert.strictEqual(cl[1].accent, 2); assert.strictEqual(cl[3].from, 'Pixel');
     assert.strictEqual((await call(PORT, 'GET', '/api/remote/commands', null, C)).json.commands.length, 0);
     const payload = Buffer.from('hello from the phone ' + 'x'.repeat(50)); const blob = await s.putFile(new Uint8Array(payload));
     const up = await s.call('POST', '/api/remote/upload', { name: '../../evil.txt', kind: 'file', blob }, A); assert(/^\/Downloads\/DANI-Phone\/evil\.txt$/.test(up.path), up.path);

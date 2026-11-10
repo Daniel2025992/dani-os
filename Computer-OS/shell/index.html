@@ -98,6 +98,7 @@ body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
 <script src="settings-app.js"></script>
 <script src="media-apps.js"></script>
 <script src="phone-remote.js"></script>
+<script src="../../Shared/vendor/qrcode.js"></script>
 <script src="avatars.js"></script>
 <script src="browser.js"></script>
 <script src="ai-app.js"></script>
@@ -277,12 +278,13 @@ function phoneApp(root){
   const J=(path,opt)=>fetch(PAIR+path,opt).then(r=>r.json());
   const link=store.get('phoneLink',null);
   if(link){
-    root.innerHTML=`<div class="pad"><h2>הטלפון מחובר</h2><p><b>${link.name.replace(/</g,'&lt;')}</b></p><button class="b" id="t">שלח הודעת בדיקה</button> <button class="b s" id="u">נתק</button></div>`;
+    root.innerHTML=`<div class="pad"><h2>הטלפון מחובר</h2><p><b>${link.name.replace(/</g,'&lt;')}</b></p><button class="b" id="t">שלח הודעת בדיקה</button> <button class="b" id="rg">צלצל בטלפון</button> <button class="b s" id="u">נתק</button></div>`;
     $('#t',root).onclick=()=>J('/api/notify',{method:'POST',headers:{authorization:'Bearer '+link.token,'content-type':'application/json'},body:JSON.stringify({title:'DANI OS',body:'שלום מהמחשב!'})}).then(r=>toast(r.ok?'ההודעה נשלחה':'השליחה נכשלה')).catch(()=>toast('שרת הצימוד אינו זמין'));
+    $('#rg',root).onclick=()=>J('/api/notify',{method:'POST',headers:{authorization:'Bearer '+link.token,'content-type':'application/json'},body:JSON.stringify({title:'DANI OS מצלצל',body:'המחשב '+(store.get('user',{}).name||'')+' מחפש אותך',ring:true})}).then(r=>toast(r.ok?'הטלפון מצלצל':'השליחה נכשלה')).catch(()=>toast('שרת הצימוד אינו זמין'));
     $('#u',root).onclick=async()=>{await J('/api/device/unlink',{method:'POST',headers:{authorization:'Bearer '+link.token}}).catch(()=>{});store.set('phoneLink',null);phoneApp(root)};
     return;
   }
-  root.innerHTML=`<div class="pad"><h2>חיבור טלפון</h2><p id="s">חיבור הטלפון הוא לא חובה. בלי הרשמה ובלי Wi-Fi משותף: רק קוד בן 6 ספרות, לשני המכשירים צריך אינטרנט.</p><div id="code" style="font-size:44px;letter-spacing:8px;font-weight:700;color:var(--red);direction:ltr;text-align:center;margin:18px 0"></div><button class="b" id="go">צור קוד חיבור</button><div id="ap" style="margin-top:14px"></div><p id="ip" style="color:#777;font-size:12px;direction:ltr;text-align:left"></p></div>`;
+  root.innerHTML=`<div class="pad"><h2>חיבור טלפון</h2><p id="s">חיבור הטלפון הוא לא חובה. בלי הרשמה ובלי Wi-Fi משותף: רק קוד בן 6 ספרות, לשני המכשירים צריך אינטרנט.</p><div id="code" style="font-size:44px;letter-spacing:8px;font-weight:700;color:var(--red);direction:ltr;text-align:center;margin:18px 0"></div><div id="qr" style="width:170px;margin:0 auto 10px;text-align:center"></div><button class="b" id="go">צור קוד חיבור</button><div id="ap" style="margin-top:14px"></div><p id="ip" style="color:#777;font-size:12px;direction:ltr;text-align:left"></p></div>`;
   fetch(AGENT+'/api/netinfo').then(r=>r.json()).then(n=>{if(n.ips&&n.ips.length)$('#ip',root).textContent='Manual address: '+n.ips.map(i=>i+':7799').join('  ')}).catch(()=>{});
   let timer;
   $('#go',root).onclick=async()=>{
@@ -290,7 +292,7 @@ function phoneApp(root){
       const r=await J('/api/pair/start',{method:'POST'});
       if(r.error){$('#s',root).textContent='שגיאה: '+r.error;return}
       const hdr={'x-pair-secret':r.secret};
-      $('#code',root).textContent=r.code;$('#s',root).textContent='הזן את הקוד באפליקציית DANI OS Mobile. תקף ל-'+r.expiresIn+' שניות, לשימוש חד-פעמי.';
+      $('#code',root).textContent=r.code;try{const q=qrcode(0,'M');q.addData('danios://pair?c='+r.code);q.make();$('#qr',root).innerHTML=q.createSvgTag({cellSize:5,margin:2,scalable:true})+'<div style="font-size:12px;color:#666;margin-top:4px">או סרוק את הקוד באפליקציה</div>'}catch(e){}$('#s',root).textContent='הזן את הקוד באפליקציית DANI OS Mobile. תקף ל-'+r.expiresIn+' שניות, לשימוש חד-פעמי.';
       clearInterval(timer);
       timer=setInterval(async()=>{
         const s=await J('/api/pair/status/'+r.pairId,{headers:hdr}).catch(()=>null);if(!s)return;
@@ -301,7 +303,7 @@ function phoneApp(root){
           $('#s',root).textContent=s.computerOk?'ממתין לאישור בטלפון…':'אשר כאן ובטלפון כדי להשלים.';
         }
         if(s.state==='paired'){clearInterval(timer);store.set('phoneLink',{name:s.deviceName,token:s.token});toast('הטלפון חובר');if(root.isConnected)phoneApp(root)}
-        if(s.state==='expired'||s.state==='rejected'){clearInterval(timer);$('#s',root).textContent=s.state==='expired'?'הקוד פג תוקף.':'הבקשה נדחתה.';$('#code',root).textContent='';$('#ap',root).innerHTML=''}
+        if(s.state==='expired'||s.state==='rejected'){clearInterval(timer);$('#s',root).textContent=s.state==='expired'?'הקוד פג תוקף.':'הבקשה נדחתה.';$('#code',root).textContent='';$('#qr',root).innerHTML='';$('#ap',root).innerHTML=''}
       },1500);
     }catch{$('#s',root).textContent='שרת הצימוד אינו זמין. הפעל: node Shared/pairing-server.js'}
   };
@@ -352,7 +354,7 @@ const APPS={
   about:{title:'אודות DANI OS',icon:ICONS.logo,w:420,h:340,render:aboutApp},
   browser:{title:'דפדפן',icon:ICONS.browser,w:900,h:600,render:(r,w)=>browserApp(r,w)},
   store:{title:'חנות אפליקציות',icon:ICONS.store,w:720,h:560,render:storeApp},
-  phone:{title:'חיבור טלפון',icon:ICONS.phone,w:480,h:400,render:phoneApp},
+  phone:{title:'חיבור טלפון',icon:ICONS.phone,w:480,h:620,render:phoneApp},
   updates:{title:'עדכונים',icon:ICONS.updates,w:520,h:360,render:updatesApp},
   settings:{title:'הגדרות',icon:ICONS.settings,w:520,h:360,render:settingsApp}
 };

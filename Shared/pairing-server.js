@@ -177,8 +177,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/device/unlink') { delete links[a.id]; inbox.delete(a.id); cmds.delete(a.id); outbox.delete(a.id); saveLinks(); if (bridge) bridge.dropLink(a.id); return send(res, 200, { ok: true }); }
     if (req.method === 'POST' && p === '/api/notify') {
       if (a.role !== 'computer') return send(res, 403, { error: 'computer_only' });
-      const { title, body: b } = await body(req); const arr = inbox.get(a.id) || [];
-      arr.push({ id: crypto.randomUUID(), title: String(title || '').slice(0, 100), body: String(b || '').slice(0, 500), ts: Date.now() });
+      const { title, body: b, ring } = await body(req); const arr = inbox.get(a.id) || [];
+      arr.push({ id: crypto.randomUUID(), title: String(title || '').slice(0, 100), body: String(b || '').slice(0, 500), ts: Date.now(), ...(ring === true ? { ring: true } : {}) });
       inbox.set(a.id, arr.slice(-100)); if (bridge) bridge.push(a.id, arr[arr.length - 1]); return send(res, 201, { ok: true });
     }
     if (req.method === 'GET' && p === '/api/notifications') {
@@ -193,6 +193,7 @@ const server = http.createServer(async (req, res) => {
       if (limited('cmd:' + a.id, 30, 60_000)) return send(res, 429, { error: 'rate_limited' });
       const c = await body(req); const t = String(c.type || '');
       if (t === 'lock') queueCmd(a.id, { type: 'lock' });
+      else if (t === 'ring') queueCmd(a.id, { type: 'ring', from: String(c.from || '').slice(0, 40) });
       else if (t === 'notify') queueCmd(a.id, { type: 'notify', title: String(c.title || 'הודעה מהטלפון').slice(0, 80), body: String(c.body || '').slice(0, 400) });
       else if (t === 'theme') {
         const th = { type: 'theme' };
