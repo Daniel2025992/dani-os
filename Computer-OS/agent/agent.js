@@ -44,6 +44,7 @@ http.createServer((req, res) => {
   if (origin ? !ORIGINS.has(origin) : req.method !== 'GET') { res.writeHead(403); return res.end(); }   // no Origin = plain <img>/<video> GET or a local tool; never a cross-site write
   if (origin) res.setHeader('access-control-allow-origin', origin);
   if (req.method === 'OPTIONS') return json(res, 204, {});
+  if (req.method === 'POST' && req.url.startsWith('/api/fs/upload?')) return sysapi.upload(req, res, new URL(req.url, 'http://x'), json);
   let d = ''; req.on('data', c => { d += c; if (d.length > 400_000) req.destroy(); });
   req.on('end', async () => {
     let b = {}; try { b = d ? JSON.parse(d) : {}; } catch {}

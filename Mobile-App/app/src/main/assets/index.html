@@ -43,7 +43,7 @@ nav button{margin:0;padding:10px;font-size:13px}
   </div>
 
   <div class="card" id="remote" style="display:none"><b>שלט רחוק</b>
-    <button id="rLock">🔒 נעל את המחשב</button>
+    <button id="rLock">נעל את המחשב</button>
     <button class="g" id="rMsg">שלח הודעה למחשב</button>
     <button class="g" id="rFile">שלח קובץ למחשב</button>
     <button class="g" id="rWall">שלח תמונה כרקע במחשב</button>
@@ -151,7 +151,7 @@ function addNote(n){
 const MAXF=12*1024*1024;
 const b64of=u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)};
 const rerr=t=>{$('#rerr').textContent=t||''};
-async function cmd(o){try{await raw('/api/remote/command',{method:'POST',body:o,token:tok()});rerr('נשלח למחשב ✓')}catch(e){rerr('לא נשלח: '+(e.message==='relay_timeout'?'המחשב לא עונה':e.message))}}
+async function cmd(o){try{await raw('/api/remote/command',{method:'POST',body:o,token:tok()});rerr('נשלח למחשב')}catch(e){rerr('לא נשלח: '+(e.message==='relay_timeout'?'המחשב לא עונה':e.message))}}
 async function upload(file,kind){
   if(!file)return;if(file.size>(RS?MAXF:25*1024*1024)){rerr('הקובץ גדול מדי (עד '+(RS?'12':'25')+' MB)');return}
   rerr('שולח…');
@@ -159,7 +159,7 @@ async function upload(file,kind){
     const bytes=new Uint8Array(await file.arrayBuffer());
     if(RS){const blob=await RS.putFile(bytes);await raw('/api/remote/upload',{method:'POST',body:{name:file.name,kind,blob},token:tok()})}
     else{const r=await fetch(base()+'/api/remote/upload?kind='+kind+'&name='+encodeURIComponent(file.name),{method:'POST',headers:{authorization:'Bearer '+tok(),'content-type':'application/octet-stream'},body:bytes});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||r.status)}
-    rerr(kind==='wallpaper'?'הרקע נשלח ומוחל במחשב ✓':'הקובץ נשלח ✓');
+    rerr(kind==='wallpaper'?'הרקע נשלח ומוחל במחשב':'הקובץ נשלח');
   }catch(e){rerr('השליחה נכשלה: '+e.message)}
 }
 async function receiveFile(n){

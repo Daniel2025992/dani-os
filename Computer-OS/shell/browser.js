@@ -1,6 +1,8 @@
 /* DANI browser v2: per-tab home/library/error pages, favicons, loading bar, stop, zoom, find, shortcuts, persistent logins (partition), downloads. */
 window.DaniBrowser = function (APPS) {
   'use strict';
+  const BI = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:middle;pointer-events:none">${d}</svg>`;
+  const BIC = { back: BI('<path d="M15 6l-6 6 6 6"/>'), fwd: BI('<path d="M9 6l6 6-6 6"/>'), reload: BI('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>'), stop: BI('<path d="M6 6l12 12M18 6L6 18"/>'), star: BI('<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.2 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>'), starOn: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:middle;pointer-events:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.2 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>', menu: BI('<path d="M4 7h16M4 12h16M4 17h16"/>'), up: BI('<path d="M6 15l6-6 6 6"/>'), down: BI('<path d="M6 9l6 6 6-6"/>') };
   const $ = (s, r = document) => r.querySelector(s);
   const E = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const css = document.createElement('style'); css.textContent = `
@@ -23,7 +25,7 @@ window.DaniBrowser = function (APPS) {
   const TILES = [['Google', 'https://www.google.com'], ['YouTube', 'https://www.youtube.com'], ['ויקיפדיה', 'https://he.wikipedia.org'], ['Ynet', 'https://www.ynet.co.il'], ['DuckDuckGo', 'https://duckduckgo.com'], ['GitHub', 'https://github.com']];
 
   function browser(root, w, startUrl) {
-    root.innerHTML = `<div class="br"><div class="tabs"></div><div class="bar"><button data-a="back" title="אחורה (Alt+←)">◀</button><button data-a="fwd" title="קדימה (Alt+→)">▶</button><button data-a="reload" title="רענן (Ctrl+R)">⟳</button><input id="u" placeholder="חפש או הקלד כתובת" spellcheck="false"><button data-a="fav" title="מועדפים">☆</button><button data-a="lib" title="מועדפים והיסטוריה">☰</button></div><div class="prog"><i></i></div><div class="find"><input id="fi" placeholder="חיפוש בדף"><button class="b s" data-a="fprev">◀</button><button class="b s" data-a="fnext">▶</button><button class="b s" data-a="fclose">✕</button></div><div class="view"></div></div>`;
+    root.innerHTML = `<div class="br"><div class="tabs"></div><div class="bar"><button data-a="back" title="אחורה (Alt+←)">${BIC.back}</button><button data-a="fwd" title="קדימה (Alt+→)">${BIC.fwd}</button><button data-a="reload" title="רענן (Ctrl+R)">${BIC.reload}</button><input id="u" placeholder="חפש או הקלד כתובת" spellcheck="false"><button data-a="fav" title="מועדפים">${BIC.star}</button><button data-a="lib" title="מועדפים והיסטוריה">${BIC.menu}</button></div><div class="prog"><i></i></div><div class="find"><input id="fi" placeholder="חיפוש בדף"><button class="b s" data-a="fprev">${BIC.up}</button><button class="b s" data-a="fnext">${BIC.down}</button><button class="b s" data-a="fclose">${BIC.stop}</button></div><div class="view"></div></div>`;
     const tabsEl = $('.tabs', root), url = $('#u', root), view = $('.view', root), prog = $('.prog', root), find = $('.find', root), fi = $('#fi', root);
     let tabs = [], cur = -1;
     const T = () => tabs[cur];
@@ -64,10 +66,10 @@ window.DaniBrowser = function (APPS) {
       tabsEl.innerHTML = tabs.map((t, i) => `<div class="tab ${i === cur ? 'on' : ''}" data-i="${i}">${t.icon ? `<img src="${E(t.icon)}" alt="">` : ''}<span>${E(t.loading ? 'טוען…' : (t.title || t.url || 'לשונית חדשה'))}</span><b data-x="${i}">×</b></div>`).join('') + '<div class="plus" data-a="new" title="לשונית חדשה (Ctrl+T)">+</div>';
     }
     function upd() {
-      const t = T(); if (!t) return; prog.classList.toggle('on', !!t.loading); $('[data-a=reload]', root).textContent = t.loading ? '✕' : '⟳';
+      const t = T(); if (!t) return; prog.classList.toggle('on', !!t.loading); $('[data-a=reload]', root).innerHTML = t.loading ? BIC.stop : BIC.reload;
       let b = false, f = false; if (live(t)) { try { b = t.f.canGoBack(); f = t.f.canGoForward(); } catch { } }
       $('[data-a=back]', root).disabled = !b; $('[data-a=fwd]', root).disabled = !f;
-      const fav = store.get('favs', []).some(x => x.u === t.url); $('[data-a=fav]', root).textContent = fav ? '★' : '☆'; $('[data-a=fav]', root).style.color = fav ? 'var(--red)' : '';
+      const fav = store.get('favs', []).some(x => x.u === t.url); $('[data-a=fav]', root).innerHTML = fav ? BIC.starOn : BIC.star; $('[data-a=fav]', root).style.color = fav ? 'var(--red)' : '';
     }
     const tileHtml = (a) => `<span class="tile" data-go="${E(a[1])}">${E(a[0])}</span>`;
     function homePage(t) {
@@ -78,13 +80,13 @@ window.DaniBrowser = function (APPS) {
     }
     function libPage(t) {
       const favs = store.get('favs', []), h = store.get('history', []).slice(0, 60);
-      const o = setOv(t, `<h3>מועדפים</h3>${favs.map((x, i) => `<div class="li"><a href="#" data-go="${E(x.u)}">${E(x.t || x.u)}</a><button data-rf="${i}">הסר</button></div>`).join('') || '<small>אין עדיין. לחץ על ☆ בדף כדי להוסיף.</small>'}<h3>היסטוריה</h3>${h.map(x => `<div class="li"><a href="#" data-go="${E(x.u)}">${E(x.title || x.u)}</a><small>${E(hostOf(x.u))}</small></div>`).join('') || '<small>ריק</small>'}<p><button class="b s" data-clr>נקה היסטוריה</button></p>`);
+      const o = setOv(t, `<h3>מועדפים</h3>${favs.map((x, i) => `<div class="li"><a href="#" data-go="${E(x.u)}">${E(x.t || x.u)}</a><button data-rf="${i}">הסר</button></div>`).join('') || '<small>אין עדיין. לחץ על הכוכב בדף כדי להוסיף.</small>'}<h3>היסטוריה</h3>${h.map(x => `<div class="li"><a href="#" data-go="${E(x.u)}">${E(x.title || x.u)}</a><small>${E(hostOf(x.u))}</small></div>`).join('') || '<small>ריק</small>'}<p><button class="b s" data-clr>נקה היסטוריה</button></p>`);
       t.title = 'מועדפים והיסטוריה'; draw();
       o.onclick = e => { const g = e.target.dataset.go; if (g) { e.preventDefault(); go(t, g); } if (e.target.dataset.rf != null) { const f = store.get('favs', []); f.splice(+e.target.dataset.rf, 1); store.set('favs', f); libPage(t); }
         if (e.target.dataset.clr !== undefined) { store.set('history', []); libPage(t); }
       };
     }
-    function errorPage(t, u, why) { t.loading = false; setOv(t, `<div style="max-width:520px;margin:60px auto;text-align:center"><div style="font-size:54px">🌐</div><h3>לא ניתן לפתוח את הדף</h3><p style="direction:ltr;color:#777;word-break:break-all">${E(u || '')}</p><p>${E(String(why))}<br>בדוק שיש חיבור לאינטרנט (הגדרות › רשת ו-Wi-Fi) ונסה שוב.</p><button class="b" data-retry>נסה שוב</button></div>`).onclick = e => { if (e.target.dataset.retry !== undefined) go(t, u || t.url); }; draw(); upd(); }
+    function errorPage(t, u, why) { t.loading = false; setOv(t, `<div style="max-width:520px;margin:60px auto;text-align:center"><div style="width:60px;height:60px;margin:0 auto;color:var(--red)">${BI('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>').replace('width:16px;height:16px','width:60px;height:60px')}</div><h3>לא ניתן לפתוח את הדף</h3><p style="direction:ltr;color:#777;word-break:break-all">${E(u || '')}</p><p>${E(String(why))}<br>בדוק שיש חיבור לאינטרנט (הגדרות › רשת ו-Wi-Fi) ונסה שוב.</p><button class="b" data-retry>נסה שוב</button></div>`).onclick = e => { if (e.target.dataset.retry !== undefined) go(t, u || t.url); }; draw(); upd(); }
 
     /* ---------- actions ---------- */
     const act = {

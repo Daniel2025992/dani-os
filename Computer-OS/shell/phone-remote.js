@@ -5,7 +5,7 @@
   let busy = false;
   function run(c) {
     if (c.type === 'lock') { const u = store.get('user'); if (u && u.hash) lockScreen(u); else toast('הטלפון ביקש לנעול, אבל לא הוגדרה סיסמה (הגדרות › משתמשים)'); }
-    else if (c.type === 'notify') toast('📱 ' + c.title + ': ' + c.body, 6000);
+    else if (c.type === 'notify') toast(c.title + ': ' + c.body, 6000);
     else if (c.type === 'theme') {
       if (c.accent != null) store.set('accent', c.accent);
       if (c.wall) store.set('wall', { kind: 'preset', id: c.wall });

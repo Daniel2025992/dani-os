@@ -52,7 +52,7 @@ input.i{border:1px solid #ddd;border-radius:8px;padding:7px 10px;font:inherit;fo
 .tb .t,#menubar #who,#menubar #appname{unicode-bidi:plaintext}
 .dots i{position:relative}
 .dots:hover i::after{position:absolute;inset:0;font-size:10px;line-height:14px;text-align:center;color:rgba(0,0,0,.55);font-style:normal;font-weight:700}
-.dots:hover .c::after{content:"✕"}.dots:hover .m::after{content:"−"}.dots:hover .x::after{content:"+"}
+.dots:hover .c::after{content:"×"}.dots:hover .m::after{content:"−"}.dots:hover .x::after{content:"+"}
 .win:not(.act) .dots i{background:#cfcfcf}
 .win:not(.act) .tb .t{color:#999}
 .win.act{box-shadow:0 24px 70px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.12)}
@@ -72,7 +72,7 @@ input.i{border:1px solid #ddd;border-radius:8px;padding:7px 10px;font:inherit;fo
  radial-gradient(900px 600px at 15% 20%,#ff6b78 0,transparent 60%),radial-gradient(800px 700px at 85% 80%,#b3101f 0,transparent 55%),linear-gradient(135deg,#fff5f6,#ffc7cd 45%,#e11d2e)}
 .boxm{width:min(420px,92vw);background:var(--glass);backdrop-filter:blur(30px);border-radius:26px;padding:34px;text-align:center;box-shadow:0 30px 90px rgba(90,0,10,.45)}
 .boxm .big{font-size:64px;font-weight:700;background:linear-gradient(90deg,#e11d2e,#ff7a86);-webkit-background-clip:text;color:transparent;margin-bottom:6px}
-.boxm .av{width:92px;height:92px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:48px;margin:0 auto 12px;box-shadow:0 4px 18px rgba(0,0,0,.2)}
+.boxm .av{width:92px;height:92px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:48px;margin:0 auto 12px;box-shadow:0 4px 18px rgba(0,0,0,.2);overflow:hidden}.who-av{display:inline-block;width:18px;height:18px;vertical-align:middle;margin:0 5px}
 .boxm input.i{margin:6px 0;text-align:center}
 .boxm .err{color:#c00;min-height:18px;font-size:13px}
 body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
@@ -98,6 +98,7 @@ body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
 <script src="settings-app.js"></script>
 <script src="media-apps.js"></script>
 <script src="phone-remote.js"></script>
+<script src="avatars.js"></script>
 <script src="browser.js"></script>
 <script src="ai-app.js"></script>
 <script src="contextmenu.js"></script>
@@ -164,7 +165,7 @@ function refreshDock(bounceId){
 function normalizeUrl(v){v=v.trim();if(!v)return'about:blank';if(/^https?:\/\//i.test(v))return v;if(/^[\w-]+(\.[\w-]+)+(\/.*)?$/.test(v))return'https://'+v;return'https://duckduckgo.com/?q='+encodeURIComponent(v)}
 function browserApp(root,w,startUrl){
   let tabs=[],cur=-1;const SHOW=isElectron?'inline-flex':'block';
-  root.innerHTML=`<div class="tabs"></div><div class="bar"><button class="b s" data-a="back">◀</button><button class="b s" data-a="fwd">▶</button><button class="b s" data-a="reload">⟳</button><input class="i" placeholder="כתובת או חיפוש" style="direction:ltr"><button class="b s" data-a="fav">⭐</button><button class="b s" data-a="new">＋</button><button class="b s" data-a="menu">☰</button></div><div class="view" style="position:absolute;top:78px;bottom:0;left:0;right:0"></div>`;
+  root.innerHTML=`<div class="tabs"></div><div class="bar"><button class="b s" data-a="back">‹</button><button class="b s" data-a="fwd">›</button><button class="b s" data-a="reload">↻</button><input class="i" placeholder="כתובת או חיפוש" style="direction:ltr"><button class="b s" data-a="fav">+</button><button class="b s" data-a="new">+</button><button class="b s" data-a="menu">…</button></div><div class="view" style="position:absolute;top:78px;bottom:0;left:0;right:0"></div>`;
   const tabsEl=$('.tabs',root),url=$('input',root),view=$('.view',root);
   function mk(u){
     const f=document.createElement(isElectron?'webview':'iframe');
@@ -221,7 +222,7 @@ async function storeApp(root){
       <h3 style="margin:14px 0 8px">אפליקציות מערכת</h3>
       ${Object.entries(APPS).filter(([k])=>k!=='store').map(([k,a])=>`<div class="card" data-open="${k}"><div class="ic aic">${a.icon}</div><div class="meta"><b>${a.title}</b><br><small>מובנה במערכת</small></div><span>פתח</span></div>`).join('')}
       <h3 style="margin:14px 0 8px">הותקנו מהחנות (${have.length})</h3>
-      ${have.map(a=>`<div class="card" data-id="${a.id}"><div class="ic aic">${appIcon(a)}</div><div class="meta"><b>${a.name}</b><br><small>${a.category} · גרסה ${I[a.id]}${I[a.id]!==a.version?' · יש עדכון':''}</small></div><span>${I[a.id]!==a.version?'⬆':'✓'}</span></div>`).join('')||'<small>עוד לא התקנת אפליקציות מהחנות. לחץ "הכול" כדי לבחור.</small>'}</div>`;
+      ${have.map(a=>`<div class="card" data-id="${a.id}"><div class="ic aic">${appIcon(a)}</div><div class="meta"><b>${a.name}</b><br><small>${a.category} · גרסה ${I[a.id]}${I[a.id]!==a.version?' · יש עדכון':''}</small></div><span>${I[a.id]!==a.version?'עדכן':'מותקן'}</span></div>`).join('')||'<small>עוד לא התקנת אפליקציות מהחנות. לחץ "הכול" כדי לבחור.</small>'}</div>`;
       bindChips();
       root.querySelectorAll('[data-open]').forEach(c=>c.onclick=()=>openApp(c.dataset.open));
       root.querySelectorAll('.card[data-id]').forEach(c=>c.onclick=()=>draw(c.dataset.id));
@@ -245,7 +246,7 @@ async function storeApp(root){
     const upd=catalog.apps.filter(a=>I[a.id]&&I[a.id]!==a.version);
     root.innerHTML=`<div class="pad"><input class="i" id="q" placeholder="חיפוש אפליקציות" value="${q}">${chips()}
     ${upd.length?`<div class="card" style="background:#fff4f5"><div class="meta"><b>${upd.length} עדכונים זמינים</b></div><button class="b" id="all">עדכן הכול</button></div>`:''}
-    ${list.map(a=>`<div class="card" data-id="${a.id}"><div class="ic aic">${appIcon(a)}</div><div class="meta"><b>${a.name}</b><br><small>${a.category} · ${a.desc}</small></div><span>${I[a.id]?(I[a.id]!==a.version?'⬆':'✓'):'התקן'}</span></div>`).join('')||'<small>אין תוצאות</small>'}</div>`;
+    ${list.map(a=>`<div class="card" data-id="${a.id}"><div class="ic aic">${appIcon(a)}</div><div class="meta"><b>${a.name}</b><br><small>${a.category} · ${a.desc}</small></div><span>${I[a.id]?(I[a.id]!==a.version?'עדכן':'מותקן'):'התקן'}</span></div>`).join('')||'<small>אין תוצאות</small>'}</div>`;
     $('#q',root).oninput=e=>{q=e.target.value;const p=e.target.selectionStart;draw();const n=$('#q',root);n.focus();n.setSelectionRange(p,p)};
     bindChips();
     root.querySelectorAll('.card[data-id]').forEach(c=>c.onclick=()=>draw(c.dataset.id));
@@ -276,12 +277,12 @@ function phoneApp(root){
   const J=(path,opt)=>fetch(PAIR+path,opt).then(r=>r.json());
   const link=store.get('phoneLink',null);
   if(link){
-    root.innerHTML=`<div class="pad"><h2>📱 הטלפון מחובר</h2><p><b>${link.name.replace(/</g,'&lt;')}</b></p><button class="b" id="t">שלח הודעת בדיקה</button> <button class="b s" id="u">נתק</button></div>`;
+    root.innerHTML=`<div class="pad"><h2>הטלפון מחובר</h2><p><b>${link.name.replace(/</g,'&lt;')}</b></p><button class="b" id="t">שלח הודעת בדיקה</button> <button class="b s" id="u">נתק</button></div>`;
     $('#t',root).onclick=()=>J('/api/notify',{method:'POST',headers:{authorization:'Bearer '+link.token,'content-type':'application/json'},body:JSON.stringify({title:'DANI OS',body:'שלום מהמחשב!'})}).then(r=>toast(r.ok?'ההודעה נשלחה':'השליחה נכשלה')).catch(()=>toast('שרת הצימוד אינו זמין'));
     $('#u',root).onclick=async()=>{await J('/api/device/unlink',{method:'POST',headers:{authorization:'Bearer '+link.token}}).catch(()=>{});store.set('phoneLink',null);phoneApp(root)};
     return;
   }
-  root.innerHTML=`<div class="pad"><h2>📱 חיבור טלפון</h2><p id="s">חיבור הטלפון הוא לא חובה. בלי הרשמה ובלי Wi-Fi משותף: רק קוד בן 6 ספרות, לשני המכשירים צריך אינטרנט.</p><div id="code" style="font-size:44px;letter-spacing:8px;font-weight:700;color:var(--red);direction:ltr;text-align:center;margin:18px 0"></div><button class="b" id="go">צור קוד חיבור</button><div id="ap" style="margin-top:14px"></div><p id="ip" style="color:#777;font-size:12px;direction:ltr;text-align:left"></p></div>`;
+  root.innerHTML=`<div class="pad"><h2>חיבור טלפון</h2><p id="s">חיבור הטלפון הוא לא חובה. בלי הרשמה ובלי Wi-Fi משותף: רק קוד בן 6 ספרות, לשני המכשירים צריך אינטרנט.</p><div id="code" style="font-size:44px;letter-spacing:8px;font-weight:700;color:var(--red);direction:ltr;text-align:center;margin:18px 0"></div><button class="b" id="go">צור קוד חיבור</button><div id="ap" style="margin-top:14px"></div><p id="ip" style="color:#777;font-size:12px;direction:ltr;text-align:left"></p></div>`;
   fetch(AGENT+'/api/netinfo').then(r=>r.json()).then(n=>{if(n.ips&&n.ips.length)$('#ip',root).textContent='Manual address: '+n.ips.map(i=>i+':7799').join('  ')}).catch(()=>{});
   let timer;
   $('#go',root).onclick=async()=>{
@@ -309,13 +310,13 @@ function phoneApp(root){
 /* ---------- Settings ---------- */
 function settingsApp(root){
   const u=store.get('user',{name:''});
-  root.innerHTML=`<div class="pad"><h2>⚙️ הגדרות</h2><p><b>משתמש</b></p><input class="i" id="un" value="${u.name.replace(/"/g,'&quot;')}"><input class="i" id="up" type="password" placeholder="סיסמה חדשה (ריק = ללא סיסמה)" style="margin-top:6px"><p><button class="b s" id="us">שמור משתמש</button></p><p>שרת צימוד</p><input class="i" id="ps" style="direction:ltr" value="${PAIR}"><p>כתובת מניפסט עדכונים</p><input class="i" id="uu" style="direction:ltr" value="${store.get('updateUrl','../../Shared/update-manifest.json')}"><p><button class="b" id="sv">שמור</button></p><p><small>DANI OS ${OS_VERSION} · ${isElectron?'מעטפת Electron':'תצוגת דפדפן (פיתוח)'}</small></p></div>`;
+  root.innerHTML=`<div class="pad"><h2>הגדרות</h2><p><b>משתמש</b></p><input class="i" id="un" value="${u.name.replace(/"/g,'&quot;')}"><input class="i" id="up" type="password" placeholder="סיסמה חדשה (ריק = ללא סיסמה)" style="margin-top:6px"><p><button class="b s" id="us">שמור משתמש</button></p><p>שרת צימוד</p><input class="i" id="ps" style="direction:ltr" value="${PAIR}"><p>כתובת מניפסט עדכונים</p><input class="i" id="uu" style="direction:ltr" value="${store.get('updateUrl','../../Shared/update-manifest.json')}"><p><button class="b" id="sv">שמור</button></p><p><small>DANI OS ${OS_VERSION} · ${isElectron?'מעטפת Electron':'תצוגת דפדפן (פיתוח)'}</small></p></div>`;
   $('#us',root).onclick=async()=>{
     const cur=store.get('user'),nu={...cur,name:$('#un',root).value.trim()||cur.name},pw=$('#up',root).value;
     if(pw){const salt=crypto.getRandomValues(new Uint8Array(16));nu.salt=b64(salt);nu.hash=await pwHash(pw,salt)}
     else if($('#up',root).value===''&&cur.hash&&!confirm('להסיר את הסיסמה? כל אחד יוכל להיכנס.'))return;
     else if(!pw){nu.salt=null;nu.hash=null}
-    store.set('user',nu);$('#who').textContent=nu.avatar+' '+nu.name;toast('המשתמש נשמר');
+    store.set('user',nu);setWho(nu);toast('המשתמש נשמר');
   };
   $('#sv',root).onclick=()=>{store.set('pairServer',$('#ps',root).value);store.set('updateUrl',$('#uu',root).value);toast('נשמר. רענן כדי להחיל.')};
 }
@@ -369,7 +370,7 @@ async function pwHash(pw,salt){ // PBKDF2-SHA256, 200k iterations; only the hash
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 function overlay(html){let o=$('#boot');if(!o){o=document.createElement('div');o.id='boot';document.body.appendChild(o)}o.innerHTML=html;return o}
 function setupAssistant(done){
-  let avatar='😀';
+  let avatar='a0';
   let hello=null;
   const s1=()=>{
     const words=['שלום','Hello','مرحبا','Bonjour','Hola','こんにちは','你好','Привет','Ciao','Hallo','안녕하세요'];
@@ -379,8 +380,8 @@ function setupAssistant(done){
     $('#go',o).onclick=()=>{clearInterval(hello);s2()};
   };
   const s2=()=>{
-    const o=overlay(`<div class="boxm"><h2>יצירת משתמש</h2><div class="av" id="av">${avatar}</div><div style="margin-bottom:10px">${['😀','🦊','🐼','🚀','🎮','🎨'].map(e=>`<span class="chip" data-e="${e}">${e}</span>`).join('')}</div><input class="i" id="nm" placeholder="שם" autofocus><input class="i" id="pw" type="password" placeholder="סיסמה (לא חובה)"><div class="err" id="er"></div><button class="b" id="ok">סיום</button></div>`);
-    o.querySelectorAll('[data-e]').forEach(c=>c.onclick=()=>{avatar=c.dataset.e;$('#av',o).textContent=avatar});
+    const o=overlay(`<div class="boxm"><h2>יצירת משתמש</h2><div class="av" id="av">${DaniAvatar(avatar)}</div><div style="margin-bottom:10px">${DANI_AVATARS.map(e=>`<span class="chip" data-e="${e}" style="display:inline-block;width:38px;height:38px;padding:0;margin:2px">${DaniAvatar(e)}</span>`).join('')}</div><input class="i" id="nm" placeholder="שם" autofocus><input class="i" id="pw" type="password" placeholder="סיסמה (לא חובה)"><div class="err" id="er"></div><button class="b" id="ok">סיום</button></div>`);
+    o.querySelectorAll('[data-e]').forEach(c=>c.onclick=()=>{avatar=c.dataset.e;$('#av',o).innerHTML=DaniAvatar(avatar)});
     $('#ok',o).onclick=async()=>{
       const name=$('#nm',o).value.trim();if(!name){$('#er',o).textContent='נא להזין שם';return}
       const pw=$('#pw',o).value,u={name,avatar,salt:null,hash:null};
@@ -390,9 +391,10 @@ function setupAssistant(done){
   };
   s1();
 }
+function setWho(u){const w=$('#who');if(w)w.innerHTML=`<span class="who-av">${DaniAvatar(u.avatar,18)}</span>`+String(u.name).replace(/[<&]/g,c=>c=='<'?'&lt;':'&amp;')}
 function lockScreen(u){
   return new Promise(res=>{
-    const o=overlay(`<div class="boxm"><img src="../../Shared/branding/logo.png" alt="DANI OS" style="width:200px;margin:-8px auto 6px;display:block"><div class="av">${u.avatar||'👤'}</div><h2>${u.name.replace(/</g,'&lt;')}</h2><input class="i" id="lp" type="password" placeholder="הזן סיסמה" autofocus><div class="err" id="er"></div><button class="b" id="un">פתח</button></div>`);
+    const o=overlay(`<div class="boxm"><img src="../../Shared/branding/logo.png" alt="DANI OS" style="width:200px;margin:-8px auto 6px;display:block"><div class="av">${DaniAvatar(u.avatar)}</div><h2>${u.name.replace(/</g,'&lt;')}</h2><input class="i" id="lp" type="password" placeholder="הזן סיסמה" autofocus><div class="err" id="er"></div><button class="b" id="un">פתח</button></div>`);
     const tryUnlock=async()=>{const h=await pwHash($('#lp',o).value,unb64(u.salt));if(h===u.hash){o.remove();res()}else{$('#er',o).textContent='סיסמה שגויה';$('#lp',o).value=''}};
     $('#un',o).onclick=tryUnlock;$('#lp',o).addEventListener('keydown',e=>e.key==='Enter'&&tryUnlock());
   });
@@ -407,7 +409,7 @@ $('#logo').onclick=e=>{
     if(['about','store','updates','files','gallery','video','music','ai'].includes(a))openApp(a);
     else if(a==='settings')openSettings('wifi');
     else if(['wifi','bt','sound','wall'].includes(a))openSettings(a);
-    else if(a==='lock'){const u=store.get('user');if(u.hash)await lockScreen(u);else toast('לא הוגדרה סיסמה – הגדר בהגדרות › משתמשים')}
+    else if(a==='lock'){const u=store.get('user');await lockScreen(u)}
     else if(a==='reboot'||a==='off'){if(!confirm(a==='off'?'לכבות את המחשב?':'להפעיל מחדש את המחשב?'))return;
       const r=await fetch(AGENT+'/api/sys/power',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:a==='off'?'poweroff':'reboot'})}).then(x=>x.json()).catch(()=>({ok:false}));toast(r.ok?'מבצע…':(r.msg||'לא זמין'))}};
   document.body.appendChild(p);
@@ -421,13 +423,13 @@ $('#dock').addEventListener('mouseleave',()=>document.querySelectorAll('.di').fo
 async function startSession(){
   let u=store.get('user',null);
   if(!u){ // profile written by the installer (name/avatar/optional password hash), if any
-    try{const r=await fetch('/Shared/profile.json',{cache:'no-store'});if(r.ok){const p=await r.json();if(p&&p.name){u={name:p.name,avatar:p.avatar||'😀',salt:p.salt||null,hash:p.hash||null};store.set('user',u)}}}catch{}
+    try{const r=await fetch('/Shared/profile.json',{cache:'no-store'});if(r.ok){const p=await r.json();if(p&&p.name){u={name:p.name,avatar:DaniAvatarId(p.avatar),salt:p.salt||null,hash:p.hash||null};store.set('user',u)}}}catch{}
   }
   if(!u){await new Promise(res=>setupAssistant(res));u=store.get('user')}
   if(u.hash&&u.salt)await lockScreen(u);
   const b=$('#boot');if(b)b.remove();
   document.body.classList.add('ready');
-  $('#who').textContent=(u.avatar||'')+' '+u.name;
+  setWho(u);
   refreshDock();openApp('store');
   setTimeout(()=>{updatesApp(document.createElement('div'));w_checkSoon&&w_checkSoon(true)},3000);
 }

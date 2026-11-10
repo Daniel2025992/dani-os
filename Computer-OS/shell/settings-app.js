@@ -21,12 +21,15 @@
   ];
   const ACCENTS = [['#e11d2e', '#ff4d5e', 'אדום'], ['#2563eb', '#5b8cff', 'כחול'], ['#16a34a', '#4ade80', 'ירוק'], ['#9333ea', '#c084fc', 'סגול'], ['#ea580c', '#fb923c', 'כתום'], ['#0f172a', '#475569', 'כהה']];
   const rawUrl = p => AGENT + '/api/fs/raw?path=' + encodeURIComponent(p);
+  const LOGOF = ['none', 'hue-rotate(225deg) saturate(1.05)', 'hue-rotate(135deg)', 'hue-rotate(285deg)', 'hue-rotate(38deg) saturate(1.1)', 'grayscale(1) contrast(1.1)'];
+  const WALL_ACC = { red: 0, sky: 1, forest: 2, sunset: 4, night: 5, graphite: 5 };   // choosing a built-in wallpaper also recolours the system + logo
   function applyAppearance() {
     const w = store.get('wall', { kind: 'preset', id: 'red' }), el = document.getElementById('wall'); if (!el) return;
     if (w.kind === 'img' && w.path) { el.style.background = `center/cover no-repeat url("${rawUrl(w.path)}")`; }
     else { const x = WALLS.find(a => a.id === w.id) || WALLS[0]; el.style.background = x.css; }
     const ac = store.get('accent', 0), a = ACCENTS[ac] || ACCENTS[0];
     document.documentElement.style.setProperty('--red', a[0]); document.documentElement.style.setProperty('--red2', a[1]);
+    document.documentElement.style.setProperty('--logoF', LOGOF[ac] || 'none');
     document.documentElement.style.zoom = String(store.get('uiScale', 1));
     const mode = store.get('mode', 'light'), h = new Date().getHours(); document.documentElement.classList.toggle('dark', mode === 'dark' || (mode === 'auto' && (h >= 19 || h < 7)));
     const wm = document.getElementById('wm'); if (wm) wm.style.display = store.get('wm', true) ? '' : 'none';
@@ -36,6 +39,8 @@
   /* ---------- UI helpers ---------- */
   const css = document.createElement('style');
   css.textContent = `
+img[src*="logo.png"],svg image{filter:var(--logoF,none);transition:filter .4s}
+html.dark .win img[src*="logo.png"]{filter:invert(1) hue-rotate(180deg) var(--logoF,none)}
 html.dark .win,html.dark .boxm,html.dark .pop{filter:invert(.92) hue-rotate(180deg)}html.dark .win img,html.dark .win video,html.dark .win canvas,html.dark .win iframe,html.dark .win .walls div,html.dark .win .acc i,html.dark .win .art{filter:invert(1) hue-rotate(180deg)}
 
 .st{display:flex;height:100%;direction:rtl;font-size:13.5px}.st .nav{width:176px;background:#f7f1f2;border-left:1px solid var(--line);padding:10px 6px;overflow:auto;flex:none}
@@ -160,7 +165,7 @@ html.dark .win,html.dark .boxm,html.dark .pop{filter:invert(.92) hue-rotate(180d
     <div class="sc"><div class="row"><b>צבע ראשי</b></div><div class="acc">${ACCENTS.map((a, i) => `<i style="background:${a[0]}" data-a="${i}" title="${a[2]}" class="${i === ac ? 'on' : ''}"></i>`).join('')}</div></div>
     <div class="sc"><div class="row"><div class="g">הצג את הלוגו על שולחן העבודה</div>${sw(store.get('wm', true), 'wm')}</div></div>`;
     pg.onclick = e => {
-      if (e.target.closest('[data-w]')) { store.set('wall', { kind: 'preset', id: e.target.closest('[data-w]').dataset.w }); }
+      if (e.target.closest('[data-w]')) { { const id = e.target.closest('[data-w]').dataset.w; store.set('wall', { kind: 'preset', id }); if (id in WALL_ACC) store.set('accent', WALL_ACC[id]); } }
       else if (e.target.closest('[data-p]')) { store.set('wall', { kind: 'img', path: e.target.closest('[data-p]').dataset.p }); }
       else if (e.target.dataset.a != null) { store.set('accent', +e.target.dataset.a); }
       else if (e.target.dataset.sw === 'wm') { store.set('wm', !store.get('wm', true)); }
@@ -216,21 +221,21 @@ html.dark .win,html.dark .boxm,html.dark .pop{filter:invert(.92) hue-rotate(180d
   };
 
   P.users = async (pg) => {
-    const u = store.get('user', { name: '', avatar: '😀' }); const l = await ag('/api/acct/list').catch(() => ({ users: [] })); if (!pg.isConnected) return;
-    pg.innerHTML = `<h3>משתמשים</h3><div class="sc"><div class="row" style="padding:16px"><div style="font-size:42px">${E(u.avatar || '👤')}</div><div class="g"><b style="font-size:16px">${E(u.name)}</b><small>${u.hash ? 'מוגן בסיסמה' : 'בלי סיסמה'}</small></div></div></div>
+    const u = store.get('user', { name: '', avatar: 'a0' }); const l = await ag('/api/acct/list').catch(() => ({ users: [] })); if (!pg.isConnected) return;
+    pg.innerHTML = `<h3>משתמשים</h3><div class="sc"><div class="row" style="padding:16px"><div style="width:54px;height:54px" id="avbig">${DaniAvatar(u.avatar)}</div><div class="g"><b style="font-size:16px">${E(u.name)}</b><small>${u.hash ? 'מוגן בסיסמה' : 'בלי סיסמה'}</small></div></div></div>
     <div class="sc"><div class="row"><div class="g"><b>שם</b></div><input class="in" id="un" value="${E(u.name)}"></div>
-    <div class="row"><div class="g"><b>תמונה</b></div><div>${['😀', '🦊', '🐼', '🚀', '🎮', '🎨', '🐱', '⚡'].map(e => `<span data-e="${e}" style="font-size:24px;cursor:pointer;padding:2px 4px;border-radius:8px;${e === u.avatar ? 'background:#ffd9dd' : ''}">${e}</span>`).join('')}</div></div>
+    <div class="row"><div class="g"><b>תמונה</b></div><div>${DANI_AVATARS.map(e => `<span data-e="${e}" style="display:inline-block;width:34px;height:34px;cursor:pointer;margin:2px;border-radius:50%;${e === DaniAvatarId(u.avatar) ? 'outline:3px solid var(--red);outline-offset:1px' : ''}">${DaniAvatar(e)}</span>`).join('')}</div></div>
     <div class="row"><div class="g"><b>סיסמה חדשה</b><small>ריק = בלי סיסמה. הסיסמה מוצפנת (PBKDF2) ולא נשמרת כטקסט</small></div><input class="in" id="up" type="password" autocomplete="new-password"></div>
     <div class="row"><button class="b" id="us">שמור</button></div><div id="umsg" class="msg"></div></div>
     <div class="sc"><div class="row"><div class="g"><b>חשבונות במחשב</b><small>הוספת משתמשים נוספים תגיע בעתיד</small></div></div>${(l.users || []).map(x => `<div class="row"><div class="g">${E(x.name)}</div>${x.current ? '<span class="pill">פעיל</span>' : ''}</div>`).join('') || '<div class="dim">—</div>'}</div>`;
-    let av = u.avatar || '😀';
+    let av = DaniAvatarId(u.avatar);
     pg.onclick = async e => {
-      if (e.target.dataset.e) { av = e.target.dataset.e; pg.querySelectorAll('[data-e]').forEach(s => s.style.background = s.dataset.e === av ? '#ffd9dd' : ''); }
+      { const t = e.target.closest('[data-e]'); if (t) { av = t.dataset.e; pg.querySelectorAll('[data-e]').forEach(x => x.style.outline = x.dataset.e === av ? '3px solid var(--red)' : ''); } }
       if (e.target.id === 'us') {
         const cur = store.get('user'), nu = { ...cur, name: $('#un', pg).value.trim() || cur.name, avatar: av }, pw = $('#up', pg).value;
         if (pw) { const salt = crypto.getRandomValues(new Uint8Array(16)); nu.salt = b64(salt); nu.hash = await pwHash(pw, salt); }
         else if (cur.hash) { if (!confirm('להסיר את הסיסמה? כל אחד יוכל להיכנס.')) return; nu.salt = null; nu.hash = null; }
-        store.set('user', nu); $('#who').textContent = nu.avatar + ' ' + nu.name;
+        store.set('user', nu); setWho(nu);
         ag('/api/acct/password', { password: pw }).catch(() => { });        // keep the Linux login password in step
         toast('נשמר'); P.users(pg);
       }

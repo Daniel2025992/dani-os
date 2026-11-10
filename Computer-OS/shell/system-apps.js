@@ -68,7 +68,7 @@ window.DaniSystemApps = function (APPS, ICONS) {
       cwd = p; trash = false; drawSb();
       try {
         const r = await ag('/api/fs/list?path=' + encodeURIComponent(p)); cwd = r.path;
-        tl.innerHTML = `<button class="b s" data-a="up">⬆</button><span class="path">${E(cwd)}</span><button class="b s" data-a="mk">תיקייה חדשה</button><button class="b s" data-a="new">קובץ טקסט חדש</button>`;
+        tl.innerHTML = `<button class="b s" data-a="up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:middle"><path d="M6 15l6-6 6 6"/></svg></button><span class="path">${E(cwd)}</span><button class="b s" data-a="mk">תיקייה חדשה</button><button class="b s" data-a="new">קובץ טקסט חדש</button>`;
         ls.innerHTML = r.items.map(it => `<div class="row" data-n="${E(it.name)}" data-d="${it.dir ? 1 : ''}">${fico(KIND[ext(it.name)], it.dir)}<span class="nm">${E(it.name)}</span><small>${it.dir ? '' : size(it.size)}</small><small>${new Date(it.mtime).toLocaleDateString('he-IL')}</small><span class="ac">${it.dir ? '' : '<button data-a="ph">לטלפון</button>'}<button data-a="rn">שנה שם</button><button data-a="rm">למחזור</button></span></div>`).join('') || '<div class="pad"><small>התיקייה ריקה</small></div>';
       } catch (e) { ls.innerHTML = `<div class="pad">שירות הקבצים לא זמין (${E(e.message)}).</div>`; }
     }

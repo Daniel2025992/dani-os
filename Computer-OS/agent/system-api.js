@@ -139,4 +139,23 @@ async function handle(req, res, url, b, send) {
     return false;
   } catch (e) { send(res, e.message === 'outside_home' ? 403 : 400, { error: e.message }); return true; }
 }
-module.exports = { handle };
+
+/* Binary upload (the "add" buttons in the music / video / gallery apps): POST /api/fs/upload?dir=/Music&name=song.mp3, raw body, up to 2 GB.
+ * Never overwrites: an existing name gets " (2)", " (3)"... */
+function upload(req, res, url, json) {
+  let abs, dir, name;
+  try {
+    dir = safe(url.searchParams.get('dir') || '/Downloads'); name = path.basename(String(url.searchParams.get('name') || '')).replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').slice(0, 200);
+    if (!name || name.startsWith('.')) throw new Error('bad_name');
+    fs.mkdirSync(dir, { recursive: true }); chownLike(dir);
+  } catch (e) { req.resume(); return json(res, 400, { ok: false, error: e.message }); }
+  const ext = path.extname(name), stem = path.basename(name, ext); let n = 1, out = path.join(dir, name);
+  while (fs.existsSync(out)) out = path.join(dir, `${stem} (${++n})${ext}`);
+  const ws = fs.createWriteStream(out, { flags: 'wx' }); let size = 0, dead = false; const MAX = 2 * 1024 ** 3;
+  req.on('data', c => { size += c.length; if (size > MAX && !dead) { dead = true; req.unpipe(ws); ws.destroy(); try { fs.unlinkSync(out); } catch { } json(res, 413, { ok: false, error: 'too_big' }); req.destroy(); } });
+  req.pipe(ws);
+  ws.on('finish', () => { if (dead) return; chownLike(out); json(res, 200, { ok: true, path: rel(out), name: path.basename(out), size }); });
+  ws.on('error', e => { if (!dead) { dead = true; json(res, 500, { ok: false, error: e.code || 'write_failed' }); } });
+}
+
+module.exports = { handle, upload };
