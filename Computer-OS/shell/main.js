@@ -39,10 +39,33 @@ app.whenReady().then(async () => {
   });
   win.webContents.once('did-finish-load', () => { try { require('fs').writeFileSync('/tmp/dani-ready', 'ok'); } catch (e) {} });
   // sites should treat the built-in browser like normal Chrome (many block the 'Electron' token)
-  try { session.defaultSession.setUserAgent(app.userAgentFallback.replace(/\sElectron\/\S+/, '').replace(/\s[a-z-]+\/\d[\d.]*(?=\sChrome|$)/i, (m) => /Chrome|Safari/.test(m) ? m : '')); } catch (e) {}
+  const UA = app.userAgentFallback.replace(/\sElectron\/\S+/, '').replace(/\s[a-z-]+\/\d[\d.]*(?=\sChrome|$)/i, (m) => /Chrome|Safari/.test(m) ? m : '');
+  const setupSession = (ses) => {
+    try { ses.setUserAgent(UA); } catch (e) {}
+    ses.on('will-download', (ev, item) => {                       // downloads from the built-in browser go to ~/Downloads
+      try {
+        const dir = path.join(require('os').homedir(), 'Downloads'); fs.mkdirSync(dir, { recursive: true });
+        let name = (item.getFilename() || 'download').replace(/[\/\\:*?"<>|\u0000-\u001f]/g, '_'), target = path.join(dir, name), i = 1;
+        const ext = path.extname(name), stem = name.slice(0, name.length - ext.length); while (fs.existsSync(target)) target = path.join(dir, stem + ' (' + i++ + ')' + ext);
+        item.setSavePath(target);
+        const say = (t) => mainWin && mainWin.webContents.executeJavaScript('window.toast&&toast(' + JSON.stringify(t) + ')').catch(() => {});
+        say('מוריד: ' + name);
+        item.once('done', (e2, state) => say(state === 'completed' ? 'ההורדה הסתיימה: ' + path.basename(target) + ' (בתיקייה הורדות)' : 'ההורדה נכשלה: ' + name));
+      } catch (e) {}
+    });
+  };
+  setupSession(session.defaultSession); setupSession(session.fromPartition('persist:dani'));
   // target=_blank / window.open inside the browser -> a new DANI browser tab
   app.on('web-contents-created', (e, wc) => {
     if (wc.getType() !== 'webview') return;
+    wc.on('before-input-event', (ev, input) => {                // browser shortcuts keep working while the page has the keyboard focus
+      if (input.type !== 'keyDown') return;
+      const k = String(input.key || '').toLowerCase(), c = input.control || input.meta;
+      if ((c && ['t', 'w', 'l', 'r', 'f', 'd', '+', '=', '-', '0', 'tab'].includes(k)) || k === 'f5' || (input.alt && (k === 'arrowleft' || k === 'arrowright'))) {
+        ev.preventDefault();
+        mainWin && mainWin.webContents.executeJavaScript('window.__browserKey&&window.__browserKey(' + JSON.stringify({ ctrl: !!c, alt: !!input.alt, key: input.key }) + ')').catch(() => {});
+      }
+    });
     wc.on('context-menu', (ev, p) => {            // right-click inside a web page -> DANI's own menu
       if (!mainWin) return;
       let back = false, fwd = false; try { back = wc.navigationHistory ? wc.navigationHistory.canGoBack() : wc.canGoBack(); fwd = wc.navigationHistory ? wc.navigationHistory.canGoForward() : wc.canGoForward(); } catch (e) {}

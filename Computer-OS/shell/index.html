@@ -98,6 +98,7 @@ body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
 <script src="settings-app.js"></script>
 <script src="media-apps.js"></script>
 <script src="phone-remote.js"></script>
+<script src="browser.js"></script>
 <script src="contextmenu.js"></script>
 <script>
 "use strict";
@@ -355,7 +356,8 @@ const APPS={
 };
 if(window.DaniSettings)DaniSettings(APPS);
 if(window.DaniSystemApps)DaniSystemApps(APPS,ICONS);
-if(window.DaniMediaApps)DaniMediaApps(APPS,ICONS);   // files, trash, task manager, terminal, control + notification center
+if(window.DaniMediaApps)DaniMediaApps(APPS,ICONS);
+if(window.DaniBrowser)DaniBrowser(APPS);   // files, trash, task manager, terminal, control + notification center
 /* ---------- user: first-boot Setup Assistant + lock screen ---------- */
 const b64=a=>btoa(String.fromCharCode(...new Uint8Array(a)));
 async function pwHash(pw,salt){ // PBKDF2-SHA256, 200k iterations; only the hash is stored, never the password
