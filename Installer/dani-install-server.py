@@ -54,6 +54,29 @@ def preset():
         return json.load(f)
 
 
+def installed():
+    """True when a disk already holds a DANI OS system (root partition labelled DANI-OS)."""
+    try:
+        out = subprocess.run(["lsblk", "-rno", "LABEL"], capture_output=True, text=True, timeout=10).stdout.split()
+        return "DANI-OS" in out
+    except Exception:
+        return False
+
+
+def eject_cd():
+    """Release the install medium so the firmware boots the hard disk next (otherwise a still-attached ISO starts the installer again)."""
+    try:
+        src = subprocess.run(["findmnt", "-no", "SOURCE", "/run/live/medium"], capture_output=True, text=True, timeout=5).stdout.strip()
+        if src:
+            subprocess.run(["eject", src], timeout=15)
+        if os.path.isdir("/sys/firmware/efi"):
+            m = re.search(r"^Boot([0-9A-F]{4})\*? DANI-OS", subprocess.run(["efibootmgr"], capture_output=True, text=True, timeout=10).stdout, re.M)
+            if m:
+                subprocess.run(["efibootmgr", "-n", m.group(1)], capture_output=True, timeout=10)
+    except Exception:
+        pass
+
+
 def validate(cfg):
     if not LIVE:
         raise ValueError("לא רץ בתוך ה-ISO החי (הגדר DANI_ALLOW_NON_LIVE=1 לבדיקות)")
@@ -191,6 +214,9 @@ class H(BaseHTTPRequestHandler):
         self.send_response(204); self._cors(); self.end_headers()
 
     def do_GET(self):
+        if self.path == "/installed":
+            self.send_response(200); self._cors(); self.send_header("content-type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps({"installed": installed()}).encode()); return
         if self.path == "/disks":
             b = json.dumps({"disks": disks()}).encode()
             self.send_response(200); self._cors(); self.send_header("content-type", "application/json"); self.end_headers(); self.wfile.write(b)
@@ -198,11 +224,18 @@ class H(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def do_POST(self):
+        if self.path == "/boot-installed":          # the ISO is still attached: eject it and restart into the installed system
+            if not installed():
+                self.send_response(409); self._cors(); self.end_headers(); return
+            self.send_response(200); self._cors(); self.end_headers()
+            if EXECUTE:
+                eject_cd(); subprocess.Popen(["systemctl", "reboot"])
+            return
         if self.path == "/reboot":
             if not (DONE and EXECUTE):
                 self.send_response(409); self._cors(); self.end_headers(); return
             self.send_response(200); self._cors(); self.end_headers()
-            subprocess.Popen(["systemctl", "reboot"])
+            eject_cd(); subprocess.Popen(["systemctl", "reboot"])
             return
         if self.path != "/install":
             self.send_response(404); self.end_headers(); return

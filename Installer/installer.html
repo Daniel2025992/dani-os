@@ -98,6 +98,15 @@ async function startPairing() {
   } catch (e) { $('#ps').textContent = 'שרת הצימוד לא זמין (' + e.message + '). אפשר להמשיך ולחבר מאוחר יותר.'; $('#pc').textContent = '—'; }
 }
 async function loadDisks() {
+  fetch(AGENT + '/installed').then(r => r.json()).then(j => {
+    if (!j.installed || $('#already')) return;
+    const b = document.createElement('div'); b.id = 'already';
+    b.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:98;padding:24px';
+    b.innerHTML = '<img src="../Shared/branding/logo.png" style="width:min(300px,60vw)"><h1 style="color:#e11d2e">DANI OS כבר מותקן על הדיסק</h1><p style="max-width:460px">המחשב התחיל מה-ISO ולא מהדיסק, ולכן הוצג שוב מסך ההתקנה. אין צורך להתקין מחדש.</p><button id="bi">הפעל את DANI OS המותקן</button><p><button class="g" id="ri">התקן מחדש (מוחק את הדיסק שתבחר)</button></p><p style="color:#666;max-width:460px;font-size:13px">כדי שזה לא יחזור: ב-VMware נתק את קובץ ה-ISO (VM &gt; Settings &gt; CD/DVD &gt; בטל "Connected").</p>';
+    document.body.appendChild(b);
+    $('#bi').onclick = () => { $('#bi').textContent = 'מפעיל מהדיסק…'; fetch(AGENT + '/boot-installed', { method: 'POST' }).catch(() => {}); };
+    $('#ri').onclick = () => b.remove();
+  }).catch(() => {});
   try { const d = await fetch(AGENT + '/disks').then(r => r.json()); $('#disk').innerHTML = d.disks.map(x => `<option value="${x.path}">${x.path} — ${x.size} ${x.model}</option>`).join('') || '<option value="">לא נמצאו דיסקים</option>'; cfg.disk = $('#disk').value; $('#disk').onchange = e => cfg.disk = e.target.value; }
   catch { $('#disk').innerHTML = '<option value="">שרת ההתקנה לא זמין (מצב תצוגה בלבד)</option>'; }
 }
