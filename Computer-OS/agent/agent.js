@@ -22,6 +22,30 @@ async function prepareApt(pkg) {            // live-build images ship with empty
   if (!listsFresh) { const u = await run('apt-get', ['update']); if (!u.ok) return u; listsFresh = true; }
   return { ok: true, out: '' };
 }
+/* ---- updates: the DANI OS programs (shell, agent, apps, phone bridge) are replaced from the newest GitHub release; system packages via apt ---- */
+const REPO = 'Daniel2025992/dani-os', ROOT = path.join(__dirname, '../..');
+const curBuild = () => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'Shared/build.json'), 'utf8')).build | 0; } catch { return 0; } };
+async function latestRelease() {
+  const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { 'user-agent': 'dani-os' }, signal: AbortSignal.timeout(12000) });
+  if (!r.ok) throw new Error('http_' + r.status); const j = await r.json(); const m = /^build-(\d+)$/.exec(j.tag_name || ''); if (!m) throw new Error('bad_tag');
+  return { build: +m[1], name: j.name || j.tag_name, notes: String(j.body || '').slice(0, 600) };
+}
+async function selfUpdate() {
+  const l = await latestRelease(), cur = curBuild(); let msg = [];
+  if (l.build > cur) {
+    const tmp = fs.mkdtempSync('/var/tmp/dani-upd-'), tgz = path.join(tmp, 'src.tgz'), st = path.join(tmp, 'src'); fs.mkdirSync(st);
+    const r = await fetch(`https://codeload.github.com/${REPO}/tar.gz/refs/tags/build-${l.build}`, { headers: { 'user-agent': 'dani-os' }, signal: AbortSignal.timeout(5 * 60_000) });
+    if (!r.ok) throw new Error('הורדה נכשלה (' + r.status + ')'); fs.writeFileSync(tgz, Buffer.from(await r.arrayBuffer()));
+    const x = await run('tar', ['xzf', tgz, '-C', st, '--strip-components=1']); if (!x.ok) throw new Error('פריסת הארכיון נכשלה');
+    for (const must of ['Computer-OS/agent/agent.js', 'Computer-OS/shell/index.html', 'Shared/pairing-server.js']) if (!fs.existsSync(path.join(st, must))) throw new Error('הגרסה שהורדה לא תקינה');
+    for (const d of ['Computer-OS', 'Shared']) { const c = await run('cp', ['-a', path.join(st, d) + '/.', path.join(ROOT, d) + '/']); if (!c.ok) throw new Error('העתקה נכשלה: ' + c.out.slice(-200)); }
+    fs.writeFileSync(path.join(ROOT, 'Shared/build.json'), JSON.stringify({ build: l.build }) + '\n'); fs.rmSync(tmp, { recursive: true, force: true });
+    msg.push(`תוכנת DANI OS עודכנה מ-build ${cur} ל-build ${l.build}.`);
+  } else msg.push('תוכנת DANI OS כבר עדכנית (build ' + cur + ').');
+  const u = await run('apt-get', ['update']); if (u.ok) { const g = await run('apt-get', ['-y', 'upgrade']); msg.push(g.ok ? 'חבילות המערכת עודכנו.' : 'עדכון חבילות המערכת נכשל.'); } else msg.push('חבילות המערכת לא עודכנו (אין חיבור למאגר).');
+  return { ok: true, msg: msg.join(' ') + ' הפעל מחדש כדי להחיל הכול.', needReboot: true };
+}
+
 function launch(cmd) {
   try {
     const base = '/run/user'; const uid = fs2.readdirSync(base).find(u => /^\d+$/.test(u) && +u >= 1000 && fs2.readdirSync(base + '/' + u).some(f => /^wayland-\d+$/.test(f)));
@@ -71,10 +95,19 @@ http.createServer((req, res) => {
       if (!REAL) return json(res, 200, { ok: false, msg: 'מצב פיתוח – לא נפתח' });
       return json(res, 200, launch(a.exec));
     }
+    if (req.method === 'POST' && req.url === '/api/apt/status') {       // which store packages are really installed (dpkg), so the store never lies
+      if (!REAL) return json(res, 200, { ok: true, real: false, installed: [] });
+      const r = await run('dpkg-query', ['-W', '-f', '${Package} ${db:Status-Abbrev}\n']);
+      const have = new Set(r.out.split('\n').filter(l => / ii\s*$/.test(l)).map(l => l.split(' ')[0]));
+      return json(res, 200, { ok: true, real: true, installed: [...allowed].filter(p => have.has(p)) });
+    }
+    if (req.method === 'POST' && req.url === '/api/system/check') {      // compare this build with the newest GitHub release
+      try { const l = await latestRelease(); return json(res, 200, { ok: true, current: curBuild(), latest: l.build, name: l.name, notes: l.notes, newer: l.build > curBuild() }); }
+      catch (e) { return json(res, 200, { ok: false, current: curBuild(), msg: 'לא ניתן להגיע ל-GitHub (אין אינטרנט?)' }); }
+    }
     if (req.method === 'POST' && req.url === '/api/system/update') {
       if (!REAL) return json(res, 200, { ok: false, msg: 'מצב פיתוח – העדכון לא הותקן (נדרש root ו-DANI_REAL=1 בתוך המערכת המותקנת).' });
-      const u = await run('apt-get', ['update']); if (!u.ok) return json(res, 200, { ok: false, msg: u.out });
-      const g = await run('apt-get', ['-y', 'upgrade']); return json(res, 200, { ok: g.ok, msg: g.ok ? 'העדכון הותקן. מומלץ להפעיל מחדש.' : g.out });
+      try { return json(res, 200, await selfUpdate()); } catch (e) { return json(res, 200, { ok: false, msg: 'העדכון נכשל: ' + e.message }); }
     }
     json(res, 404, { error: 'not_found' });
   });

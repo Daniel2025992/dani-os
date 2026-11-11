@@ -1,95 +1,319 @@
 {
  "version": 1,
  "categories": [
-  "כלים",
+  "משרד",
   "יצירה",
-  "משחקים",
+  "מדיה",
+  "אינטרנט",
   "תקשורת",
+  "משחקים",
+  "כלים",
   "מערכת"
  ],
  "apps": [
   {
-   "id": "notes",
-   "name": "פתקים",
-   "icon": "📝",
-   "category": "כלים",
-   "version": "1.2.0",
-   "type": "pwa",
-   "url": "https://excalidraw.com",
-   "desc": "לוח כתיבה וציור חופשי."
-  },
-  {
-   "id": "maps",
-   "name": "מפות",
-   "icon": "🗺️",
-   "category": "כלים",
-   "version": "1.0.0",
-   "type": "pwa",
-   "url": "https://www.openstreetmap.org",
-   "desc": "מפות פתוחות של העולם."
-  },
-  {
-   "id": "photopea",
-   "name": "עריכת תמונות",
-   "icon": "🖼️",
-   "category": "יצירה",
-   "version": "2.0.1",
-   "type": "pwa",
-   "url": "https://www.photopea.com",
-   "desc": "עורך תמונות מתקדם בדפדפן."
-  },
-  {
-   "id": "chess",
-   "name": "שחמט",
-   "icon": "♟️",
-   "category": "משחקים",
-   "version": "1.1.0",
-   "type": "pwa",
-   "url": "https://lichess.org",
-   "desc": "שחמט אונליין."
-  },
-  {
-   "id": "discord",
-   "name": "Discord",
-   "icon": "💬",
-   "category": "תקשורת",
-   "version": "1.0.0",
-   "type": "pwa",
-   "url": "https://discord.com/app",
-   "desc": "צ'אט וקהילות."
-  },
-  {
    "id": "files",
-   "name": "קבצים",
-   "icon": "📁",
-   "category": "מערכת",
-   "version": "1.0.0",
+   "name": "קבצים (PCManFM)",
+   "category": "כלים",
+   "version": "apt",
    "type": "native",
    "package": "pcmanfm",
-   "desc": "מנהל קבצים מקורי (חבילת apt: pcmanfm).",
-   "exec": "pcmanfm"
+   "exec": "pcmanfm",
+   "glyph": "folder",
+   "desc": "מנהל קבצים מקורי."
+  },
+  {
+   "id": "libreoffice",
+   "name": "LibreOffice",
+   "category": "משרד",
+   "version": "apt",
+   "type": "native",
+   "package": "libreoffice",
+   "exec": "libreoffice",
+   "glyph": "doc",
+   "desc": "מעבד תמלילים, גיליונות ומצגות – תואם Word ו-Excel."
+  },
+  {
+   "id": "evince",
+   "name": "קורא PDF",
+   "category": "משרד",
+   "version": "apt",
+   "type": "native",
+   "package": "evince",
+   "exec": "evince",
+   "glyph": "pdf",
+   "desc": "פותח ומציג קובצי PDF."
+  },
+  {
+   "id": "mousepad",
+   "name": "עורך טקסט",
+   "category": "משרד",
+   "version": "apt",
+   "type": "native",
+   "package": "mousepad",
+   "exec": "mousepad",
+   "glyph": "doc",
+   "desc": "עורך טקסט פשוט ומהיר."
+  },
+  {
+   "id": "geany",
+   "name": "Geany – עורך קוד",
+   "category": "כלים",
+   "version": "apt",
+   "type": "native",
+   "package": "geany",
+   "exec": "geany",
+   "glyph": "code",
+   "desc": "עורך קוד קל עם הדגשת תחביר."
+  },
+  {
+   "id": "calc",
+   "name": "מחשבון",
+   "category": "כלים",
+   "version": "apt",
+   "type": "native",
+   "package": "gnome-calculator",
+   "exec": "gnome-calculator",
+   "glyph": "calc",
+   "desc": "מחשבון מדעי."
+  },
+  {
+   "id": "keepassxc",
+   "name": "KeePassXC",
+   "category": "כלים",
+   "version": "apt",
+   "type": "native",
+   "package": "keepassxc",
+   "exec": "keepassxc",
+   "glyph": "shield",
+   "desc": "מנהל סיסמאות מוצפן, לא מחובר לענן."
+  },
+  {
+   "id": "gimp",
+   "name": "GIMP",
+   "category": "יצירה",
+   "version": "apt",
+   "type": "native",
+   "package": "gimp",
+   "exec": "gimp",
+   "glyph": "brush",
+   "desc": "עריכת תמונות מתקדמת."
+  },
+  {
+   "id": "inkscape",
+   "name": "Inkscape",
+   "category": "יצירה",
+   "version": "apt",
+   "type": "native",
+   "package": "inkscape",
+   "exec": "inkscape",
+   "glyph": "pen",
+   "desc": "איור וקטורי (לוגואים, פוסטרים)."
+  },
+  {
+   "id": "krita",
+   "name": "Krita",
+   "category": "יצירה",
+   "version": "apt",
+   "type": "native",
+   "package": "krita",
+   "exec": "krita",
+   "glyph": "brush",
+   "desc": "ציור דיגיטלי."
+  },
+  {
+   "id": "blender",
+   "name": "Blender",
+   "category": "יצירה",
+   "version": "apt",
+   "type": "native",
+   "package": "blender",
+   "exec": "blender",
+   "glyph": "cube",
+   "desc": "מודלים תלת-ממדיים ואנימציה."
+  },
+  {
+   "id": "kdenlive",
+   "name": "Kdenlive",
+   "category": "מדיה",
+   "version": "apt",
+   "type": "native",
+   "package": "kdenlive",
+   "exec": "kdenlive",
+   "glyph": "film",
+   "desc": "עורך וידאו מקצועי."
+  },
+  {
+   "id": "obs",
+   "name": "OBS Studio",
+   "category": "מדיה",
+   "version": "apt",
+   "type": "native",
+   "package": "obs-studio",
+   "exec": "obs",
+   "glyph": "record",
+   "desc": "הקלטת מסך ושידור חי."
+  },
+  {
+   "id": "audacity",
+   "name": "Audacity",
+   "category": "מדיה",
+   "version": "apt",
+   "type": "native",
+   "package": "audacity",
+   "exec": "audacity",
+   "glyph": "wave",
+   "desc": "הקלטה ועריכת שמע."
+  },
+  {
+   "id": "handbrake",
+   "name": "HandBrake",
+   "category": "מדיה",
+   "version": "apt",
+   "type": "native",
+   "package": "handbrake",
+   "exec": "ghb",
+   "glyph": "film",
+   "desc": "המרת סרטונים בין פורמטים."
   },
   {
    "id": "vlc",
    "name": "VLC",
-   "icon": "🎬",
-   "category": "יצירה",
-   "version": "3.0.0",
+   "category": "מדיה",
+   "version": "apt",
    "type": "native",
    "package": "vlc",
-   "desc": "נגן מדיה מקורי (חבילת apt: vlc).",
-   "exec": "vlc"
+   "exec": "vlc",
+   "glyph": "play",
+   "desc": "נגן המדיה שמנגן כל פורמט."
+  },
+  {
+   "id": "firefox",
+   "name": "Firefox",
+   "category": "אינטרנט",
+   "version": "apt",
+   "type": "native",
+   "package": "firefox-esr",
+   "exec": "firefox-esr",
+   "glyph": "globe",
+   "desc": "דפדפן Firefox המלא."
+  },
+  {
+   "id": "chromium",
+   "name": "Chromium",
+   "category": "אינטרנט",
+   "version": "apt",
+   "type": "native",
+   "package": "chromium",
+   "exec": "chromium",
+   "glyph": "globe",
+   "desc": "דפדפן Chromium."
+  },
+  {
+   "id": "thunderbird",
+   "name": "Thunderbird",
+   "category": "אינטרנט",
+   "version": "apt",
+   "type": "native",
+   "package": "thunderbird",
+   "exec": "thunderbird",
+   "glyph": "mail",
+   "desc": "תוכנת דואר אלקטרוני."
+  },
+  {
+   "id": "transmission",
+   "name": "Transmission",
+   "category": "אינטרנט",
+   "version": "apt",
+   "type": "native",
+   "package": "transmission-gtk",
+   "exec": "transmission-gtk",
+   "glyph": "down",
+   "desc": "הורדות Torrent."
   },
   {
    "id": "steam",
    "name": "Steam",
-   "icon": "🎮",
    "category": "משחקים",
-   "version": "1.0.0",
+   "version": "apt",
    "type": "native",
    "package": "steam-installer",
-   "desc": "פלטפורמת משחקים (מהדורת Gamer).",
-   "exec": "steam"
+   "exec": "steam",
+   "glyph": "game",
+   "desc": "פלטפורמת משחקים (מהדורת Gamer)."
+  },
+  {
+   "id": "supertuxkart",
+   "name": "SuperTuxKart",
+   "category": "משחקים",
+   "version": "apt",
+   "type": "native",
+   "package": "supertuxkart",
+   "exec": "supertuxkart",
+   "glyph": "game",
+   "desc": "משחק מרוצים תלת-ממדי חינמי."
+  },
+  {
+   "id": "gchess",
+   "name": "שחמט (GNOME)",
+   "category": "משחקים",
+   "version": "apt",
+   "type": "native",
+   "package": "gnome-chess",
+   "exec": "gnome-chess",
+   "glyph": "game",
+   "desc": "שחמט נגד המחשב."
+  },
+  {
+   "id": "mines",
+   "name": "Mines",
+   "category": "משחקים",
+   "version": "apt",
+   "type": "native",
+   "package": "gnome-mines",
+   "exec": "gnome-mines",
+   "glyph": "game",
+   "desc": "שולה המוקשים."
+  },
+  {
+   "id": "notes",
+   "name": "פתקים",
+   "category": "כלים",
+   "version": "1.2.0",
+   "type": "pwa",
+   "url": "https://excalidraw.com",
+   "desc": "לוח כתיבה וציור חופשי. (קיצור לאתר, דורש אינטרנט)",
+   "glyph": "doc"
+  },
+  {
+   "id": "maps",
+   "name": "מפות",
+   "category": "כלים",
+   "version": "1.0.0",
+   "type": "pwa",
+   "url": "https://www.openstreetmap.org",
+   "desc": "מפות פתוחות של העולם. (קיצור לאתר, דורש אינטרנט)",
+   "glyph": "map"
+  },
+  {
+   "id": "photopea",
+   "name": "עריכת תמונות",
+   "category": "יצירה",
+   "version": "2.0.1",
+   "type": "pwa",
+   "url": "https://www.photopea.com",
+   "desc": "עורך תמונות מתקדם בדפדפן. (קיצור לאתר, דורש אינטרנט)",
+   "glyph": "image"
+  },
+  {
+   "id": "discord",
+   "name": "Discord",
+   "category": "תקשורת",
+   "version": "1.0.0",
+   "type": "pwa",
+   "url": "https://discord.com/app",
+   "desc": "צ'אט וקהילות. (קיצור לאתר, דורש אינטרנט)",
+   "glyph": "chat"
   }
  ]
 }
