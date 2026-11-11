@@ -18,3 +18,7 @@
   };
   window.DaniAvatarId = a => /^a[0-7]$/.test(a || '') ? a : 'a0';
 })();
+
+/* Administrator password policy: at least 10 characters with lower case, upper case, a digit and a symbol. Returns '' when OK. */
+window.DaniPw = { check: p => { p = String(p || ''); if (p.length < 10) return 'הסיסמה חייבת להיות לפחות 10 תווים'; if (!/[a-z]/.test(p)) return 'חסרה אות קטנה (a-z)'; if (!/[A-Z]/.test(p)) return 'חסרה אות גדולה (A-Z)'; if (!/\d/.test(p)) return 'חסרה ספרה'; if (!/[^A-Za-z0-9]/.test(p)) return 'חסר סימן מיוחד (למשל @ # ! $ %)'; return ''; },
+  hint: 'לפחות 10 תווים: אות גדולה, אות קטנה, ספרה וסימן מיוחד (@ # ! $ ...)' };

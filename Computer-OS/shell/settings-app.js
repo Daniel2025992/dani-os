@@ -224,18 +224,18 @@ html.dark .win,html.dark .boxm,html.dark .pop{filter:invert(.92) hue-rotate(180d
     const u = store.get('user', { name: '', avatar: 'a0' }); const l = await ag('/api/acct/list').catch(() => ({ users: [] })); if (!pg.isConnected) return;
     pg.innerHTML = `<h3>משתמשים</h3><div class="sc"><div class="row" style="padding:16px"><div style="width:54px;height:54px" id="avbig">${DaniAvatar(u.avatar)}</div><div class="g"><b style="font-size:16px">${E(u.name)}</b><small>${u.hash ? 'מוגן בסיסמה' : 'בלי סיסמה'}${u.email ? ' · ' + E(u.email) : ''}</small></div><span class="pill">מנהל מערכת</span></div></div>
     <div class="sc"><div class="row"><div class="g"><b>שם</b></div><input class="in" id="un" value="${E(u.name)}"></div>
-    <div class="row"><div class="g"><b>אימייל</b><small>אופציונלי. נשמר רק במחשב הזה</small></div><input class="in" id="ue" type="email" value="${E(u.email || '')}" placeholder="name@example.com"></div>
+    <div class="row"><div class="g"><b>אימייל</b><small>אופציונלי. נשמר רק במחשב הזה</small></div><input class="in" id="ue" type="email" value="${E(u.email || '')}" placeholder="name@example.com" style="direction:ltr"></div>
     <div class="row"><div class="g"><b>תמונה</b></div><div>${DANI_AVATARS.map(e => `<span data-e="${e}" style="display:inline-block;width:34px;height:34px;cursor:pointer;margin:2px;border-radius:50%;${e === DaniAvatarId(u.avatar) ? 'outline:3px solid var(--red);outline-offset:1px' : ''}">${DaniAvatar(e)}</span>`).join('')}</div></div>
-    <div class="row"><div class="g"><b>סיסמה חדשה</b><small>ריק = בלי סיסמה. הסיסמה מוצפנת (PBKDF2) ולא נשמרת כטקסט</small></div><input class="in" id="up" type="password" autocomplete="new-password"></div>
+    <div class="row"><div class="g"><b>סיסמה חדשה</b><small>ריק = להשאיר את הסיסמה הנוכחית. ${DaniPw.hint}. הסיסמה מוצפנת (PBKDF2) ולא נשמרת כטקסט</small></div><input class="in" id="up" type="password" autocomplete="new-password"></div>
     <div class="row"><button class="b" id="us">שמור</button></div><div id="umsg" class="msg"></div></div>
     <div class="sc"><div class="row"><div class="g"><b>חשבונות במחשב</b><small>הוספת משתמשים נוספים תגיע בעתיד</small></div></div>${(l.users || []).map(x => `<div class="row"><div class="g">${E(x.name)}</div>${x.current ? '<span class="pill">פעיל</span>' : ''}</div>`).join('') || '<div class="dim">—</div>'}</div>`;
     let av = DaniAvatarId(u.avatar);
     pg.onclick = async e => {
       { const t = e.target.closest('[data-e]'); if (t) { av = t.dataset.e; pg.querySelectorAll('[data-e]').forEach(x => x.style.outline = x.dataset.e === av ? '3px solid var(--red)' : ''); } }
       if (e.target.id === 'us') {
-        const cur = store.get('user'), em = $('#ue', pg).value.trim(); if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast('כתובת אימייל לא תקינה'); if (em && !$('#up', pg).value && !cur.hash) return toast('עם אימייל חובה סיסמה למנהל'); const nu = { ...cur, name: $('#un', pg).value.trim() || cur.name, avatar: av, email: em, admin: cur.admin !== false }, pw = $('#up', pg).value;
+        const cur = store.get('user'), em = $('#ue', pg).value.trim(); if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast('כתובת אימייל לא תקינה'); { const pw0 = $('#up', pg).value, adm = cur.admin !== false; if (adm && !em) return toast('למנהל חובה אימייל'); if (adm && !pw0 && !cur.hash) return toast('למנהל חובה סיסמה חזקה'); if (pw0) { const bad = DaniPw.check(pw0); if (bad) return toast(bad); } } const nu = { ...cur, name: $('#un', pg).value.trim() || cur.name, avatar: av, email: em, admin: cur.admin !== false }, pw = $('#up', pg).value;
         if (pw) { const salt = crypto.getRandomValues(new Uint8Array(16)); nu.salt = b64(salt); nu.hash = await pwHash(pw, salt); }
-        else if (cur.hash) { if (!confirm('להסיר את הסיסמה? כל אחד יוכל להיכנס.')) return; nu.salt = null; nu.hash = null; }
+        
         store.set('user', nu); setWho(nu);
         ag('/api/acct/password', { password: pw }).catch(() => { });        // keep the Linux login password in step
         toast('נשמר'); P.users(pg);

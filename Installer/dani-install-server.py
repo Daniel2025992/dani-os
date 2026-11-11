@@ -54,6 +54,12 @@ def validate(cfg):
         raise ValueError("מהדורה לא תקפה")
     if cfg.get("username") and not re.fullmatch(r"[a-z_][a-z0-9_-]{1,30}", cfg["username"]):
         raise ValueError("שם משתמש לא תקף")
+    if cfg.get("username"):    # the administrator account needs a valid email and a strong password
+        pw = cfg.get("password") or ""
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", cfg.get("email") or ""):
+            raise ValueError("למנהל חובה אימייל תקין")
+        if len(pw) < 10 or not (re.search(r"[a-z]", pw) and re.search(r"[A-Z]", pw) and re.search(r"\d", pw) and re.search(r"[^A-Za-z0-9]", pw)):
+            raise ValueError("סיסמת מנהל: לפחות 10 תווים עם אות גדולה, קטנה, ספרה וסימן מיוחד")
     for k, rx in (("language", r"[a-z]{2}"), ("country", r"[A-Z]{2}"), ("keyboard", r"[a-z]{2}"), ("timezone", r"[A-Za-z_]+/[A-Za-z_/+-]+")):
         if not re.fullmatch(rx, cfg.get(k, "")):
             raise ValueError("ערך לא תקף: " + k)
