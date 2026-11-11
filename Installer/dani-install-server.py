@@ -45,6 +45,15 @@ def part(disk, n):
     return f"{disk}p{n}" if re.search(r"\d$", disk) else f"{disk}{n}"
 
 
+PRESET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "admin-preset.json")
+
+
+def preset():
+    """Ready-made administrator (hashes only, never the password)."""
+    with open(PRESET_FILE, encoding="utf8") as f:
+        return json.load(f)
+
+
 def validate(cfg):
     if not LIVE:
         raise ValueError("לא רץ בתוך ה-ISO החי (הגדר DANI_ALLOW_NON_LIVE=1 לבדיקות)")
@@ -52,9 +61,11 @@ def validate(cfg):
         raise ValueError("דיסק לא תקף או חסר אישור")
     if cfg.get("edition") not in EDITIONS:
         raise ValueError("מהדורה לא תקפה")
+    if cfg.get("preset"):
+        p = preset(); cfg["username"], cfg["email"] = p["username"], p["email"]
     if cfg.get("username") and not re.fullmatch(r"[a-z_][a-z0-9_-]{1,30}", cfg["username"]):
         raise ValueError("שם משתמש לא תקף")
-    if cfg.get("username"):    # the administrator account needs a valid email and a strong password
+    if cfg.get("username") and not cfg.get("preset"):    # the administrator account needs a valid email and a strong password
         pw = cfg.get("password") or ""
         if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", cfg.get("email") or ""):
             raise ValueError("למנהל חובה אימייל תקין")
@@ -68,7 +79,9 @@ def validate(cfg):
 def profile_json(cfg, u):
     """Lock-screen profile read by the DANI shell on first boot (PBKDF2-SHA256, 200k, same as WebCrypto). Hash only."""
     prof = {"name": cfg.get("username") or None, "avatar": "a0", "email": cfg.get("email") or None, "admin": True, "salt": None, "hash": None}
-    if cfg.get("password"):
+    if cfg.get("preset"):
+        p = preset(); prof["salt"], prof["hash"] = p["salt"], p["hash"]
+    elif cfg.get("password"):
         salt = os.urandom(16)
         prof["salt"] = base64.b64encode(salt).decode()
         prof["hash"] = base64.b64encode(hashlib.pbkdf2_hmac("sha256", cfg["password"].encode(), salt, 200000, 32)).decode()
@@ -116,7 +129,7 @@ def user_steps(cfg, u):
     # the live user is created by live-config at boot, so it is NOT inside the squashfs: create the real user here
     steps = [["chroot", TARGET, "sh", "-c", 'id -u "$1" >/dev/null 2>&1 || useradd -m -s /bin/bash -G sudo,audio,video,render,input,netdev,plugdev "$1"', "x", u],
              ["chroot", TARGET, "sh", "-c", '[ "$1" = dani ] || passwd -l dani', "x", u]]
-    steps.append(("password", u) if cfg.get("password") else ["chroot", TARGET, "passwd", "-d", u])
+    steps.append(("password", u) if cfg.get("password") or cfg.get("preset") else ["chroot", TARGET, "passwd", "-d", u])
     return steps
 
 
@@ -154,7 +167,7 @@ def run_install(cfg, emit):
             elif isinstance(c, tuple) and c[0] == "password":
                 emit(f"set password for {c[1]} (hash only)\n")
                 if EXECUTE:
-                    h = subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=cfg["password"], capture_output=True, text=True, check=True).stdout.strip()
+                    h = preset()["crypt"] if cfg.get("preset") else subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=cfg["password"], capture_output=True, text=True, check=True).stdout.strip()
                     subprocess.run(["chroot", TARGET, "chpasswd", "-e"], input=f"{c[1]}:{h}\n", text=True, check=True)
             else:
                 emit("$ " + shlex.join(c) + "\n")
