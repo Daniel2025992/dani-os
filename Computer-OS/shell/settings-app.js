@@ -233,7 +233,7 @@ html.dark .win,html.dark .boxm,html.dark .pop{filter:invert(.92) hue-rotate(180d
     pg.onclick = async e => {
       { const t = e.target.closest('[data-e]'); if (t) { av = t.dataset.e; pg.querySelectorAll('[data-e]').forEach(x => x.style.outline = x.dataset.e === av ? '3px solid var(--red)' : ''); } }
       if (e.target.id === 'us') {
-        const cur = store.get('user'), em = $('#ue', pg).value.trim(); if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast('כתובת אימייל לא תקינה'); const nu = { ...cur, name: $('#un', pg).value.trim() || cur.name, avatar: av, email: em, admin: cur.admin !== false }, pw = $('#up', pg).value;
+        const cur = store.get('user'), em = $('#ue', pg).value.trim(); if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast('כתובת אימייל לא תקינה'); if (em && !$('#up', pg).value && !cur.hash) return toast('עם אימייל חובה סיסמה למנהל'); const nu = { ...cur, name: $('#un', pg).value.trim() || cur.name, avatar: av, email: em, admin: cur.admin !== false }, pw = $('#up', pg).value;
         if (pw) { const salt = crypto.getRandomValues(new Uint8Array(16)); nu.salt = b64(salt); nu.hash = await pwHash(pw, salt); }
         else if (cur.hash) { if (!confirm('להסיר את הסיסמה? כל אחד יוכל להיכנס.')) return; nu.salt = null; nu.hash = null; }
         store.set('user', nu); setWho(nu);

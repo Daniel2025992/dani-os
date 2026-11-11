@@ -43,13 +43,13 @@ const EDITIONS = [['Home', 'לבית ולעבודה יומיומית', `<svg vie
 const TZ = ['Asia/Jerusalem', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo'];
 const sel = (id, arr, v) => `<select id="${id}">${arr.map(([k, n]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
 // email and password are optional; the user can also be skipped and created at first boot
-const valid = () => step !== 3 || cfg.skipUser || (/^[a-z_][a-z0-9_-]{1,30}$/.test(cfg.username) && (cfg.email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cfg.email)));
+const valid = () => step !== 3 || cfg.skipUser || (/^[a-z_][a-z0-9_-]{1,30}$/.test(cfg.username) && (cfg.email === '' || (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cfg.email) && cfg.password.length >= 4)));
 
 const screens = [
   () => `<h2>בחירת מהדורה</h2><div class="ed">${EDITIONS.map(([k, d, i]) => `<div class="opt ${cfg.edition === k ? 'on' : ''}" data-ed="${k}"><div style="font-size:34px">${i}</div><b>DANI OS ${k}</b><small>${d}</small></div>`).join('')}</div>`,
   () => `<h2>שפה</h2>${sel('language', [['he', 'עברית'], ['en', 'English'], ['ar', 'العربية'], ['ru', 'Русский']], cfg.language)}`,
   () => `<h2>אזור</h2><label>מדינה</label>${sel('country', [['IL', 'ישראל'], ['US', 'ארצות הברית'], ['GB', 'בריטניה'], ['DE', 'גרמניה']], cfg.country)}<label>אזור זמן</label>${sel('timezone', TZ.map(t => [t, t]), cfg.timezone)}<label>מקלדת</label>${sel('keyboard', [['il', 'עברית'], ['us', 'English (US)'], ['gb', 'English (UK)'], ['de', 'Deutsch']], cfg.keyboard)}`,
-  () => `<h2>יצירת משתמש</h2>${cfg.skipUser ? '<p>המשתמש ייווצר בהפעלה הראשונה של המחשב, כמו ב-Mac.</p><button class="g" id="unskip">אני רוצה ליצור עכשיו</button>' : `<label>שם משתמש (אותיות לועזיות קטנות)</label><input id="username" value="${cfg.username}" autocomplete="off" style="direction:ltr"><label>אימייל (לא חובה)</label><input id="email" value="${cfg.email}" style="direction:ltr"><label>סיסמה (לא חובה — בלי סיסמה כל אחד שמפעיל את המחשב נכנס)</label><input id="password" type="password" value="${cfg.password}" style="direction:ltr"><label>תמונת פרופיל (אופציונלי)</label><input id="avatar" type="file" accept="image/*"><div class="err" id="err"></div><p><button class="g" id="skip">דלג — ליצור משתמש בהפעלה הראשונה</button></p>`}`,
+  () => `<h2>יצירת משתמש</h2>${cfg.skipUser ? '<p>המשתמש ייווצר בהפעלה הראשונה של המחשב, כמו ב-Mac.</p><button class="g" id="unskip">אני רוצה ליצור עכשיו</button>' : `<label>שם משתמש (אותיות לועזיות קטנות)</label><input id="username" value="${cfg.username}" autocomplete="off" style="direction:ltr"><label>אימייל (לא חובה — אם מזינים אימייל, חובה גם סיסמה למנהל)</label><input id="email" value="${cfg.email}" style="direction:ltr"><label>סיסמה (לא חובה — בלי סיסמה כל אחד שמפעיל את המחשב נכנס)</label><input id="password" type="password" value="${cfg.password}" style="direction:ltr"><label>תמונת פרופיל (אופציונלי)</label><input id="avatar" type="file" accept="image/*"><div class="err" id="err"></div><p><button class="g" id="skip">דלג — ליצור משתמש בהפעלה הראשונה</button></p>`}`,
   () => `<h2>חיבור הטלפון</h2>${!cfg.pairPhone ? '<p>האם ברצונך לחבר את הטלפון שלך ל-DANI OS? זה לא חובה, ובלי הרשמה: רק קוד בן 6 ספרות, בלי Wi-Fi משותף (לשני המכשירים צריך אינטרנט).</p><button id="yes">כן, חבר</button> <button class="g" id="no">לא עכשיו</button>' : `<p>פתח את DANI OS Mobile והזן את הקוד:</p><div class="code" id="pc">…</div><p id="ps">ממתין לטלפון…</p><div id="pa"></div><small>הקוד חד-פעמי ותקף ל-2 דקות. אפשר לדלג ולחבר מאוחר יותר מתוך המערכת.</small>`}`,
   () => `<h2>סיכום והתקנה</h2><p>מהדורה: <b>DANI OS ${cfg.edition}</b><br>שפה: ${cfg.language} · ${cfg.country} · ${cfg.timezone} · מקלדת ${cfg.keyboard}<br>משתמש: ${cfg.skipUser ? '<b>ייווצר בהפעלה הראשונה</b>' : `<b>${cfg.username}</b>${cfg.email ? ' (' + cfg.email + ')' : ''}${cfg.password ? '' : ' — ללא סיסמה'}`}<br>טלפון: ${cfg.pairPhone ? 'מבוקש' : 'ללא'}</p><label>דיסק יעד</label><select id="disk"><option value="">טוען…</option></select><p class="err">ההתקנה תמחק את כל הנתונים בדיסק שנבחר.</p><pre id="log" style="display:none"></pre>`
 ];
@@ -120,7 +120,7 @@ async function install() {
     document.body.appendChild(box); $('#cl').onclick = () => { box.remove(); $('#next').disabled = false; installing = false; };
   }
 }
-function go(d) { if (d > 0 && !valid()) { $('#err') && ($('#err').textContent = 'שם משתמש: אותיות לועזיות קטנות/ספרות (2–31 תווים). אם הוזן אימייל — הוא חייב להיות תקין.'); return; } step = Math.max(0, Math.min(screens.length - 1, step + d)); render(); }
+function go(d) { if (d > 0 && !valid()) { $('#err') && ($('#err').textContent = 'שם משתמש: אותיות לועזיות קטנות/ספרות (2–31 תווים). אם הוזן אימייל: כתובת תקינה וסיסמה של 4 תווים לפחות.'); return; } step = Math.max(0, Math.min(screens.length - 1, step + d)); render(); }
 $('#next').onclick = () => step === screens.length - 1 ? install() : go(1);
 $('#back').onclick = () => go(-1);
 render();
