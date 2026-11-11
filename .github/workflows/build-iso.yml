@@ -24,7 +24,8 @@ jobs:
             isolinux syslinux-common ca-certificates git nodejs npm curl
       - uses: actions/checkout@v4
       - name: Stamp build number
-        run: echo '{"build": ${{ github.run_number }}}' > Shared/build.json
+        run: |
+          echo '{"build": ${{ github.run_number }}}' > Shared/build.json
       - name: Build ISO
         run: |
           chmod +x Build-Scripts/*.sh
