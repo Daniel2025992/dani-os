@@ -20,13 +20,13 @@ body:not(.ready) #wm{display:none}
 #menubar b{color:var(--red)}
 #desk{position:fixed;top:28px;bottom:0;left:0;right:0}
 .win{position:absolute;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.35),0 0 0 1px var(--line);display:flex;flex-direction:column;overflow:hidden;min-width:300px;min-height:200px}
-.win.max{inset:0!important;width:auto!important;height:auto!important;border-radius:0}
+.win.max{inset:0!important;z-index:8000!important;width:auto!important;height:auto!important;border-radius:0}
 .win.min{display:none}
 .tb{height:38px;background:linear-gradient(#fafafa,#ececec);display:flex;align-items:center;padding:0 12px;gap:8px;border-bottom:1px solid var(--line);cursor:grab;touch-action:none;flex:none}
 .tb .t{flex:1;text-align:center;font-size:13px;font-weight:600;color:#444}
-.dots{display:flex;gap:8px;direction:ltr}
-.dots i{width:14px;height:14px;border-radius:50%;display:block;cursor:pointer}
-.dots .c{background:#ff5f57}.dots .m{background:#febc2e}.dots .x{background:#28c840}
+.dots{display:flex;direction:ltr;align-self:stretch;margin:0 -12px 0 0}
+.dots i{width:46px;display:grid;place-items:center;cursor:pointer;color:#444;font-style:normal;transition:background .12s}
+.dots i svg{width:13px;height:13px;pointer-events:none}.dots .m:hover,.dots .x:hover{background:rgba(0,0,0,.09)}.dots .c:hover{background:#e81123;color:#fff}
 .body{flex:1;overflow:auto;position:relative;background:#fff}
 .rz{position:absolute;bottom:0;left:0;width:18px;height:18px;cursor:nesw-resize;touch-action:none}
 #dock{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:var(--glass);backdrop-filter:blur(24px);border-radius:22px;padding:8px 12px;display:flex;gap:10px;border:1px solid rgba(255,255,255,.6);box-shadow:0 10px 40px rgba(0,0,0,.3);z-index:9000}
@@ -50,10 +50,8 @@ input.i{border:1px solid #ddd;border-radius:8px;padding:7px 10px;font:inherit;fo
 .tab.on{background:#fff}
 #menubar,.tb{direction:ltr}                 /* Mac layout: logo + traffic lights on the left even though the UI text is RTL */
 .tb .t,#menubar #who,#menubar #appname{unicode-bidi:plaintext}
-.dots i{position:relative}
-.dots:hover i::after{position:absolute;inset:0;font-size:10px;line-height:14px;text-align:center;color:rgba(0,0,0,.55);font-style:normal;font-weight:700}
-.dots:hover .c::after{content:"×"}.dots:hover .m::after{content:"−"}.dots:hover .x::after{content:"+"}
-.win:not(.act) .dots i{background:#cfcfcf}
+
+.win:not(.act) .dots i{color:#aaa}
 .win:not(.act) .tb .t{color:#999}
 .win.act{box-shadow:0 24px 70px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.12)}
 @keyframes bounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-22px)}65%{transform:translateY(-6px)}}
@@ -76,6 +74,8 @@ input.i{border:1px solid #ddd;border-radius:8px;padding:7px 10px;font:inherit;fo
 .boxm input.i{margin:6px 0;text-align:center}
 .boxm .err{color:#c00;min-height:18px;font-size:13px}
 body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
+#dock{transition:transform .25s,opacity .25s}body.hasmax #dock{transform:translate(-50%,120%);opacity:0}body.hasmax #dock:hover,#dockzone:hover+#dock{transform:translateX(-50%);opacity:1}
+#dockzone{position:fixed;bottom:0;left:20%;right:20%;height:10px;z-index:9001}
 #hello{font-size:78px;font-weight:700;height:104px;line-height:104px;white-space:nowrap;background:linear-gradient(90deg,#e11d2e,#ff7a86,#e11d2e);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:flow 4s linear infinite;transition:opacity .5s,filter .5s,transform .5s}
 #hello.out{opacity:0;filter:blur(10px);transform:translateY(12px)}
 @keyframes flow{to{background-position:200% 0}}
@@ -93,7 +93,7 @@ body:not(.ready) #dock,body:not(.ready) #menubar{display:none}
 <img id="wm" src="../../Shared/branding/logo.png" alt="">
 <div id="menubar"><div class="l"><span class="logo" id="logo"><img src="../../Shared/branding/logo.png" alt="DANI OS"></span><span id="appname">Finder</span></div><div class="r"><span id="who"></span><span id="clock"></span></div></div>
 <div id="desk"></div>
-<div id="dock"></div>
+<div id="dockzone"></div><div id="dock"></div>
 <script src="system-apps.js"></script>
 <script src="settings-app.js"></script>
 <script src="media-apps.js"></script>
@@ -125,14 +125,16 @@ function openApp(id){
   const el=document.createElement('div');el.className='win';
   const W=Math.min(app.w||760,innerWidth-20),H=Math.min(app.h||520,innerHeight-120);
   Object.assign(el.style,{width:W+'px',height:H+'px',left:(40+Object.keys(wins).length*30)+'px',top:(20+Object.keys(wins).length*26)+'px'});
-  el.innerHTML=`<div class="tb"><div class="dots"><i class="c"></i><i class="m"></i><i class="x"></i></div><div class="t">${app.title}</div><div style="width:50px"></div></div><div class="body"></div><div class="rz"></div>`;
+  el.innerHTML=`<div class="tb"><div class="dots"><i class="m" title="מזער"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 6h10"/></svg></i><i class="x" title="הגדל"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1.5" y="1.5" width="9" height="9"/></svg></i><i class="c" title="סגור"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 1l10 10M11 1L1 11"/></svg></i></div><div class="t">${app.title}</div><div style="width:138px"></div></div><div class="body"></div><div class="rz"></div>`;
   $('#desk').appendChild(el);
   const w={id,el,body:$('.body',el)};wins[id]=w;
-  $('.c',el).onclick=()=>{el.remove();delete wins[id];app.onClose&&app.onClose();refreshDock()};
-  $('.m',el).onclick=()=>{el.classList.add('min');refreshDock()};
-  $('.x',el).onclick=()=>el.classList.toggle('max');
+  $('.c',el).onclick=()=>{el.remove();setTimeout(()=>document.body.classList.toggle('hasmax',!!document.querySelector('.win.max:not(.min)')));delete wins[id];app.onClose&&app.onClose();refreshDock()};
+  $('.m',el).onclick=()=>{el.classList.add('min');setTimeout(()=>document.body.classList.toggle('hasmax',!!document.querySelector('.win.max:not(.min)')));refreshDock()};
+  const RES='<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1.5" y="3.5" width="7" height="7"/><path d="M3.5 3.5v-2h7v7h-2"/></svg>',BOX=$('.x',el).innerHTML;
+  const tgl=()=>{el.classList.toggle('max');$('.x',el).innerHTML=el.classList.contains('max')?RES:BOX;document.body.classList.toggle('hasmax',!!document.querySelector('.win.max:not(.min)'))};
+  $('.x',el).onclick=tgl;
   const tb=$('.tb',el);
-  tb.addEventListener('dblclick',()=>el.classList.toggle('max'));
+  tb.addEventListener('dblclick',e=>{if(!e.target.closest('.dots'))tgl()});
   drag(tb,el,(dx,dy,s)=>{el.style.left=s.l+dx+'px';el.style.top=Math.max(0,s.t+dy)+'px'},()=>({l:el.offsetLeft,t:el.offsetTop}),()=>el.classList.contains('max'));
   drag($('.rz',el),el,(dx,dy,s)=>{el.style.width=Math.max(300,s.w-dx)+'px';el.style.height=Math.max(200,s.h+dy)+'px';el.style.left=(s.l+dx)+'px'},()=>({w:el.offsetWidth,h:el.offsetHeight,l:el.offsetLeft}),()=>el.classList.contains('max'));
   el.addEventListener('pointerdown',()=>focus(w));
@@ -155,6 +157,7 @@ function drag(handle,el,move,snap,blocked){
 
 /* ---------- dock ---------- */
 function refreshDock(bounceId){
+  document.body.classList.toggle('hasmax',!!document.querySelector('.win.max:not(.min)'));
   const d=$('#dock');d.innerHTML='';
   for(const [id,a] of Object.entries(APPS)){
     if(a.hidden&&!wins[id])continue;
@@ -453,7 +456,7 @@ $('#dock').addEventListener('mouseleave',()=>document.querySelectorAll('.di').fo
 async function startSession(){
   let u=store.get('user',null);
   if(!u){ // profile written by the installer (name/avatar/optional password hash), if any
-    try{const r=await fetch('/Shared/profile.json',{cache:'no-store'});if(r.ok){const p=await r.json();if(p&&p.name){u={name:p.name,avatar:DaniAvatarId(p.avatar),salt:p.salt||null,hash:p.hash||null};store.set('user',u)}}}catch{}
+    try{const r=await fetch('/Shared/profile.json',{cache:'no-store'});if(r.ok){const p=await r.json();if(p&&p.name){u={name:p.name,avatar:DaniAvatarId(p.avatar),email:p.email||'',admin:true,salt:p.salt||null,hash:p.hash||null};store.set('user',u)}}}catch{}
   }
   if(!u){await new Promise(res=>setupAssistant(res));u=store.get('user')}
   if(u.hash&&u.salt)await lockScreen(u);

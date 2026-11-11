@@ -61,7 +61,7 @@ def validate(cfg):
 
 def profile_json(cfg, u):
     """Lock-screen profile read by the DANI shell on first boot (PBKDF2-SHA256, 200k, same as WebCrypto). Hash only."""
-    prof = {"name": cfg.get("username") or None, "avatar": "😀", "salt": None, "hash": None}
+    prof = {"name": cfg.get("username") or None, "avatar": "a0", "email": cfg.get("email") or None, "admin": True, "salt": None, "hash": None}
     if cfg.get("password"):
         salt = os.urandom(16)
         prof["salt"] = base64.b64encode(salt).decode()
